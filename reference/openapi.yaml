@@ -1,0 +1,1700 @@
+# Generated from https://fiwano.com/api/v1/openapi.yaml — do not edit here.
+openapi: 3.1.0
+info:
+  title: Fiwano API
+  description: 'Unified REST API for WhatsApp, Instagram and Facebook Messenger.
+
+
+    Authenticate every request with the `X-API-Key` header (keys start with `mip_live_`,
+    created on the API Keys page in the portal). Base URL: `https://fiwano.com`.
+
+
+    Human-readable guides: https://fiwano.com/documentation'
+  version: 2.0.0
+servers:
+- url: https://fiwano.com
+paths:
+  /api/v1/channels:
+    get:
+      tags:
+      - api
+      summary: List Channels
+      description: 'List all channels for the authenticated user.
+
+
+        Returns both active and inactive channels. Each channel includes its current
+
+        `subscription` (billing) state and the channel-type-specific identifiers
+
+        (WhatsApp: phone_number_id/waba_id; Instagram: ig_account_id/ig_username;
+
+        Instagram & Facebook: page_id).'
+      operationId: list_channels_api_v1_channels_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/{channel_id}:
+    get:
+      tags:
+      - api
+      summary: Get Channel
+      description: 'Get one channel by ID.
+
+
+        Same shape as the list endpoint — a single channel object including its
+
+        `subscription` (billing) state. Returns 404 if the channel does not belong
+
+        to the authenticated account.'
+      operationId: get_channel_api_v1_channels__channel_id__get
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - api
+      summary: Update Channel
+      description: 'Update channel webhook settings.
+
+
+        Set webhook_url to receive incoming messages. Must be HTTPS (or http://localhost
+        for dev).
+
+        Optionally provide a custom webhook_secret for HMAC verification.'
+      operationId: update_channel_api_v1_channels__channel_id__patch
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelUpdateRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelUpdateResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - api
+      summary: Delete Channel
+      description: 'Deactivate a channel (soft delete).
+
+
+        The channel stops sending and receiving, but is not erased — its channel_id
+
+        and history are preserved so it can be reconnected later via a new OAuth
+
+        flow. Fiwano unsubscribes the channel''s Meta webhook resource only when safe:
+
+        a WABA subscription is kept if another active WhatsApp channel uses the same
+
+        WABA, and a Page subscription is kept if another active Instagram/Facebook
+
+        channel uses the same Page.'
+      operationId: delete_channel_api_v1_channels__channel_id__delete
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/setup-url:
+    post:
+      tags:
+      - api
+      summary: Create Setup Url
+      description: 'Generate a URL for connecting a channel on behalf of a user (programmatic
+        flow).
+
+
+        The client opens the returned `setup_url` in a popup or browser. After the
+
+        user completes Meta OAuth (or WhatsApp Embedded Signup), they are redirected
+
+        to `redirect_uri` with a one-time `code`. Exchange that code via
+
+        POST /api/v1/channels/exchange-code to obtain the channel_id.
+
+
+        `redirect_uri` must already be whitelisted for this API key (add it via
+
+        POST /api/v1/redirects), otherwise the request is rejected. The setup URL
+        is
+
+        valid until the `expires_at` returned in the response.'
+      operationId: create_setup_url_api_v1_channels_setup_url_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupUrlRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupUrlResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/exchange-code:
+    post:
+      tags:
+      - api
+      summary: Exchange Code
+      description: 'Exchange a one-time completion code for channel data.
+
+
+        After the user completes the OAuth flow, the redirect_uri receives a `code`
+        parameter.
+
+        This endpoint exchanges that code for the channel_id and basic details.
+
+
+        The code is one-time use and expires after 5 minutes.'
+      operationId: exchange_code_api_v1_channels_exchange_code_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeCodeRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeCodeResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/{channel_id}/profile/{user_id}:
+    get:
+      tags:
+      - api
+      summary: Get Sender Profile
+      description: "Fetch sender profile from Meta Graph API.\n\nReturns profile data\
+        \ for a user who messaged your channel.\nResults are cached for 5 minutes\
+        \ to reduce Meta API calls.\n\n- Instagram: username, name, profile_pic, follower_count,\
+        \ is_verified\n- Facebook: first_name, last_name, profile_pic\n- WhatsApp:\
+        \ not supported (name comes inline in webhooks via data.from_name)\n\nArgs:\n\
+        \    channel_id: Channel ID\n    user_id: Sender identifier (IGSID for Instagram,\
+        \ PSID for Facebook)\n\nReturns:\n    SenderProfileResponse with profile data\n\
+        \nRaises:\n    HTTPException 404: Channel not found or WhatsApp (not supported)\n\
+        \    HTTPException 400: Channel inactive or missing token\n    HTTPException\
+        \ 502: Meta API error"
+      operationId: get_sender_profile_api_v1_channels__channel_id__profile__user_id__get
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SenderProfileResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/redirects:
+    get:
+      tags:
+      - api
+      summary: List Redirects
+      description: 'List the redirect URIs whitelisted for this API key.
+
+
+        These gate the programmatic channel-connection flow — the `redirect_uri` in
+
+        POST /api/v1/channels/setup-url must match one of these patterns.'
+      operationId: list_redirects_api_v1_redirects_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - api
+      summary: Add Redirect
+      description: 'Add an allowed redirect URI.
+
+
+        Must be HTTPS. Supports wildcard patterns like https://*.example.com/*'
+      operationId: add_redirect_api_v1_redirects_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedirectCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectCreateResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/redirects/{redirect_id}:
+    delete:
+      tags:
+      - api
+      summary: Remove Redirect
+      description: Remove an allowed redirect URI.
+      operationId: remove_redirect_api_v1_redirects__redirect_id__delete
+      parameters:
+      - name: redirect_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Redirect Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/messages/send:
+    post:
+      tags:
+      - api
+      summary: Send Message
+      description: 'Send a text message through a connected channel.
+
+
+        Only text messages are supported here (use /api/v1/messages/send-media for
+
+        media and /api/v1/messages/send-template for WhatsApp templates).
+
+
+        Recipient format by channel:
+
+        - WhatsApp: phone number without + (e.g. "1234567890")
+
+        - Instagram: Instagram-scoped user ID (IGSID)
+
+        - Facebook Messenger: Page-scoped user ID (PSID)
+
+
+        `text` has a per-platform hard limit (WhatsApp 4096, Facebook 2000,
+
+        Instagram 1000); oversize text is rejected with 400 `text_too_long` before
+
+        Meta is called. On a transient Meta failure the response is 200 with
+
+        `status: "queued"` (retried in the background); on a permanent error it is
+
+        200 with `success: false`, `status: "failed"`.'
+      operationId: send_message_api_v1_messages_send_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/media/{media_id}:
+    get:
+      tags:
+      - api
+      summary: Download Media
+      description: 'Download a media file previously received via webhook.
+
+
+        Requires a Pro license. Files are temporary and expire after
+
+        the configured TTL (default 60 minutes).
+
+
+        Response: raw file bytes with appropriate Content-Type header.'
+      operationId: download_media_api_v1_media__media_id__get
+      parameters:
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Media Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/messages/send-media:
+    post:
+      tags:
+      - api
+      summary: Send Media Message
+      description: 'Send a media message through a connected channel.
+
+
+        Requires a Pro license. Meta fetches the file directly from `media_url`
+
+        — Fiwano does not download or store it. For non-public content, use a
+
+        signed URL (S3 presigned, GCS Signed, R2 signed, or HMAC-signed URL).
+
+
+        Supported media types per channel:
+
+        - WhatsApp: image, audio, video, document
+
+        - Instagram: image, audio, video, document
+
+        - Facebook Messenger: image, audio, video, document
+
+
+        On failure, returns 200 with `success=false` and `error_code` (Meta
+
+        code, when applicable). See public API docs for the error code table.'
+      operationId: send_media_message_api_v1_messages_send_media_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMediaRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/{channel_id}/templates:
+    get:
+      tags:
+      - api
+      summary: List Templates
+      description: 'List message templates for a WhatsApp channel.
+
+
+        By default, syncs templates from Meta before returning (sync=true).
+
+        Set sync=false to return cached data only (faster, but may be stale).
+
+
+        Templates are tied to the WhatsApp Business Account (WABA).
+
+        Only WhatsApp channels support templates.'
+      operationId: list_templates_api_v1_channels__channel_id__templates_get
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      - name: sync
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Sync templates from Meta before returning. Set false for faster
+            cached data (may be stale).
+          default: true
+          title: Sync
+        description: Sync templates from Meta before returning. Set false for faster
+          cached data (may be stale).
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by status: APPROVED, PENDING, or REJECTED.'
+          title: Status
+        description: 'Filter by status: APPROVED, PENDING, or REJECTED.'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - api
+      summary: Create Template
+      description: 'Create a new WhatsApp message template.
+
+
+        The template is submitted to Meta for review (status=PENDING).
+
+        Review typically takes up to 24 hours.
+
+
+        Template name must be lowercase alphanumeric with underscores.
+
+        BODY component is required. HEADER (TEXT only), FOOTER, and BUTTONS are optional.
+
+
+        Variables use {{1}}, {{2}} syntax (positional) or {{name}} (named).
+
+        Example values are required for Meta review.
+
+
+        Rate limit: 100 templates created per WABA per hour.'
+      operationId: create_template_api_v1_channels__channel_id__templates_post
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/{channel_id}/templates/{template_id}:
+    get:
+      tags:
+      - api
+      summary: Get Template
+      description: 'Get a specific template by its ID.
+
+
+        Returns cached template data including variable definitions
+
+        with example values for each variable.'
+      operationId: get_template_api_v1_channels__channel_id__templates__template_id__get
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      - name: template_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Template Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - api
+      summary: Update Template
+      description: 'Update a template''s components.
+
+
+        All components are replaced entirely — partial update is not supported by
+        Meta.
+
+
+        Restrictions:
+
+        - Only APPROVED, REJECTED, or PAUSED templates can be edited
+
+        - Approved templates: max 10 edits per 30 days, 1 per 24 hours
+
+        - Cannot change category of an approved template
+
+
+        After editing an approved template, it goes back to PENDING for re-review.'
+      operationId: update_template_api_v1_channels__channel_id__templates__template_id__put
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      - name: template_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Template Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpdateRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - api
+      summary: Delete Template
+      description: 'Delete a message template.
+
+
+        By default, deletes only the specific language version.
+
+        Set all_languages=true to delete ALL language versions of this template.
+
+
+        WARNING: After deleting an approved template, you cannot create a template
+
+        with the same name for 30 days.'
+      operationId: delete_template_api_v1_channels__channel_id__templates__template_id__delete
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel Id
+      - name: template_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Template Id
+      - name: all_languages
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Delete all language versions of this template, not just this
+            one.
+          default: false
+          title: All Languages
+        description: Delete all language versions of this template, not just this
+          one.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/messages/send-template:
+    post:
+      tags:
+      - api
+      summary: Send Template Message
+      description: "Send a WhatsApp template message.\n\nUse this to initiate conversations\
+        \ outside the 24-hour messaging window.\nOnly APPROVED templates can be sent.\n\
+        \n## Variables\n\nEach template may have variables in HEADER, BODY, and BUTTON\
+        \ components.\nAll variables must be provided — there are no defaults.\n\n\
+        **Positional format** (for templates created with {{1}}, {{2}}):\n```json\n\
+        {\n    \"variables\": {\n        \"header\": [\"Summer Sale\"],\n        \"\
+        body\": [\"Pablo\", \"ORD-123\", \"25%\"],\n        \"buttons\": [{\"index\"\
+        : 0, \"value\": \"promo25\"}]\n    }\n}\n```\n\n**Named format** (for templates\
+        \ created with {{customer_name}}):\n```json\n{\n    \"variables\": {\n   \
+        \     \"body\": {\"customer_name\": \"Pablo\", \"order_number\": \"ORD-123\"\
+        }\n    }\n}\n```\n\nOmit `variables` entirely if the template has no variables."
+      operationId: send_template_message_api_v1_messages_send_template_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendTemplateRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendTemplateResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ChannelListResponse:
+      properties:
+        channels:
+          items:
+            $ref: '#/components/schemas/ChannelOut'
+          type: array
+          title: Channels
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - channels
+      - total
+      title: ChannelListResponse
+      description: List of channels.
+    ChannelOut:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: Channel ID. Use this value in every other channel/message API
+            call.
+        channel_type:
+          type: string
+          title: Channel Type
+          description: 'Channel type: ''whatsapp'', ''instagram'', or ''facebook''.'
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: 'Display name: business name (WhatsApp), username (Instagram),
+            or Page name (Facebook).'
+        is_active:
+          type: boolean
+          title: Is Active
+          description: True if the channel can currently send and receive messages.
+        phone_number_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone Number Id
+          description: WhatsApp only — Meta's phone number ID.
+        phone_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone Number
+          description: WhatsApp only — human-readable phone number.
+        waba_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Waba Id
+          description: WhatsApp only — WhatsApp Business Account (WABA) ID.
+        quality_rating:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Quality Rating
+          description: WhatsApp only — Meta's current quality rating for the number,
+            when available.
+        ig_account_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ig Account Id
+          description: Instagram only — Instagram account ID.
+        ig_username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ig Username
+          description: Instagram only — Instagram username.
+        page_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Page Id
+          description: Instagram/Facebook — linked Facebook Page ID.
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+          description: Where incoming messages and delivery statuses are delivered.
+        has_webhook_secret:
+          type: boolean
+          title: Has Webhook Secret
+          description: Whether a webhook secret is configured for HMAC signature verification.
+          default: false
+        webhook_events:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Webhook Events
+          description: Enabled event types, e.g. ["message.received", "message.delivered"].
+        connected_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connected At
+          description: ISO-8601 UTC timestamp when the channel was connected.
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+          description: ISO-8601 UTC timestamp when the channel record was first created.
+        subscription:
+          $ref: '#/components/schemas/SubscriptionInfo'
+          description: Current subscription/billing state. The channel can send/receive
+            only while status='active'.
+      type: object
+      required:
+      - id
+      - channel_type
+      - is_active
+      - subscription
+      title: ChannelOut
+      description: 'A connected channel — one WhatsApp number, Instagram account,
+        or Facebook
+
+        Page. Channel-type-specific fields are populated only for the relevant type
+
+        (e.g. `phone_number_id`/`waba_id` for WhatsApp, `ig_username` for Instagram);
+
+        the rest are null.'
+    ChannelUpdateRequest:
+      properties:
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+          description: HTTPS URL for incoming webhook delivery
+        webhook_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Secret
+          description: Set a specific HMAC secret (also use this to rotate to a new
+            value). Omit to keep the current secret — except that setting webhook_url
+            for the first time with no secret auto-generates one, returned in the
+            response.
+        webhook_events:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Webhook Events
+          description: List of event types to deliver. Available events depend on
+            channel type.
+      type: object
+      title: ChannelUpdateRequest
+      description: Request to update channel settings.
+    ChannelUpdateResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+        webhook_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Secret
+        webhook_events:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Webhook Events
+      type: object
+      required:
+      - id
+      title: ChannelUpdateResponse
+      description: Response after channel update.
+    ExchangeCodeRequest:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: One-time completion code from OAuth redirect
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+          description: HTTPS URL for incoming webhook delivery. If provided, webhook
+            is configured automatically — no separate PATCH needed.
+        webhook_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Secret
+          description: 'HMAC secret used to sign webhook deliveries (verify it via
+            the X-Webhook-Signature header). Optional: if you set webhook_url without
+            supplying this, Fiwano auto-generates a secret and returns it in the response.
+            Pass your own value to use a specific secret instead.'
+        webhook_events:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Webhook Events
+          description: List of event types to deliver. Available events depend on
+            channel type. If omitted, no events are delivered until configured.
+      type: object
+      required:
+      - code
+      title: ExchangeCodeRequest
+      description: Request to exchange completion code for channel data.
+    ExchangeCodeResponse:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+        channel_type:
+          type: string
+          title: Channel Type
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        phone_number_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone Number Id
+        phone_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone Number
+        ig_account_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ig Account Id
+        ig_username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ig Username
+        page_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Page Id
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+        webhook_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Secret
+        webhook_events:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Webhook Events
+      type: object
+      required:
+      - channel_id
+      - channel_type
+      title: ExchangeCodeResponse
+      description: Response with channel data after code exchange.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    RedirectCreateRequest:
+      properties:
+        uri_pattern:
+          type: string
+          title: Uri Pattern
+          description: 'HTTPS URL pattern. Supports wildcards: https://*.example.com/*'
+      type: object
+      required:
+      - uri_pattern
+      title: RedirectCreateRequest
+      description: Request to add redirect URI.
+    RedirectCreateResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        uri_pattern:
+          type: string
+          title: Uri Pattern
+      type: object
+      required:
+      - id
+      - uri_pattern
+      title: RedirectCreateResponse
+      description: Response after creating redirect.
+    RedirectListResponse:
+      properties:
+        redirects:
+          items:
+            $ref: '#/components/schemas/RedirectOut'
+          type: array
+          title: Redirects
+      type: object
+      required:
+      - redirects
+      title: RedirectListResponse
+      description: List of redirect URIs.
+    RedirectOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        uri_pattern:
+          type: string
+          title: Uri Pattern
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - uri_pattern
+      title: RedirectOut
+      description: Allowed redirect URI.
+    SendMediaRequest:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+          description: Channel ID to send from
+        recipient:
+          type: string
+          title: Recipient
+          description: Recipient identifier
+        media_type:
+          type: string
+          title: Media Type
+          description: 'Media type: image, audio, video, or document'
+        media_url:
+          type: string
+          maxLength: 2048
+          title: Media Url
+          description: HTTPS URL of the media file. For non-public content, use a
+            signed URL (S3 presigned, GCS Signed, R2 signed, or HMAC). Max length
+            2048.
+        caption:
+          anyOf:
+          - type: string
+            maxLength: 1024
+          - type: 'null'
+          title: Caption
+          description: Caption (WhatsApp image/video/document)
+        filename:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Filename
+          description: Filename (WhatsApp document only)
+      type: object
+      required:
+      - channel_id
+      - recipient
+      - media_type
+      - media_url
+      title: SendMediaRequest
+      description: 'Request to send a media message. Requires a Pro license.
+
+
+        Meta fetches the file directly from `media_url`. For non-public
+
+        content, use a signed URL — presigned S3, GCS Signed URL, Cloudflare
+
+        R2 signed URL, or HMAC-signed URL on your own server. Public URLs
+
+        are accessible to anyone who learns them; only use them for
+
+        non-sensitive content.
+
+
+        Use image, audio, video, or document across all supported channels.
+
+        Provider-specific attachment names are handled internally.'
+    SendMessageRequest:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+          description: Channel ID to send from
+        recipient:
+          type: string
+          title: Recipient
+          description: Recipient identifier (phone number for WhatsApp, IGSID for
+            Instagram, PSID for Facebook)
+        text:
+          type: string
+          title: Text
+          description: Message text
+      type: object
+      required:
+      - channel_id
+      - recipient
+      - text
+      title: SendMessageRequest
+      description: Request to send a message. Only text messages are supported.
+    SendMessageResponse:
+      properties:
+        success:
+          type: boolean
+          title: Success
+        message_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message Id
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        error_code:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Error Code
+          description: Meta error code (when failure originates at Meta). See documentation
+            for common media error codes.
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+          description: 'Delivery state: ''sent'' (accepted by Meta), ''queued'' (transient
+            failure — retried in the background), or ''failed'' (permanent error;
+            see error/error_code).'
+      type: object
+      required:
+      - success
+      title: SendMessageResponse
+      description: Response after sending a message.
+    SendTemplateRequest:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+          description: WhatsApp channel ID to send from
+        template_name:
+          type: string
+          title: Template Name
+          description: Template name (e.g., 'order_confirmation')
+        language:
+          type: string
+          title: Language
+          description: Template language code (e.g., 'en_US')
+        recipient:
+          type: string
+          title: Recipient
+          description: Recipient phone number (without +, e.g., '1234567890')
+        variables:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Variables
+          description: 'Variable values keyed by component type. Positional: {"header":
+            ["Sale"], "body": ["Pablo", "ORD-123"], "buttons": [{"index": 0, "value":
+            "promo"}]}. Named: {"body": {"customer_name": "Pablo", "order_number":
+            "ORD-123"}}. Omit if template has no variables.'
+      type: object
+      required:
+      - channel_id
+      - template_name
+      - language
+      - recipient
+      title: SendTemplateRequest
+      description: "Request to send a WhatsApp template message.\n\nVariables must\
+        \ match the template's parameter definitions.\nOnly APPROVED templates can\
+        \ be sent.\n\nFor positional templates, provide variables as arrays:\n   \
+        \ {\"body\": [\"Pablo\", \"ORD-123\"]}\n\nFor named templates, provide variables\
+        \ as objects:\n    {\"body\": {\"customer_name\": \"Pablo\", \"order_number\"\
+        : \"ORD-123\"}}"
+    SendTemplateResponse:
+      properties:
+        success:
+          type: boolean
+          title: Success
+        message_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message Id
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      type: object
+      required:
+      - success
+      title: SendTemplateResponse
+      description: Response after sending a template message.
+    SenderProfileResponse:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+        channel_type:
+          type: string
+          title: Channel Type
+        user_id:
+          type: string
+          title: User Id
+        profile:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Profile
+          description: Profile data from Meta. Fields vary by channel type. null if
+            profile is unavailable.
+        cached:
+          type: boolean
+          title: Cached
+          description: Whether the result was served from cache
+          default: false
+      type: object
+      required:
+      - channel_id
+      - channel_type
+      - user_id
+      title: SenderProfileResponse
+      description: Sender profile from Meta Graph API.
+    SetupUrlRequest:
+      properties:
+        channel_type:
+          type: string
+          pattern: ^(whatsapp|instagram|facebook)$
+          title: Channel Type
+          description: 'Channel type: whatsapp, instagram, or facebook'
+        redirect_uri:
+          type: string
+          title: Redirect Uri
+          description: URL to redirect after OAuth completion. Must be in allowed_redirects.
+      type: object
+      required:
+      - channel_type
+      - redirect_uri
+      title: SetupUrlRequest
+      description: Request to generate channel setup URL.
+    SetupUrlResponse:
+      properties:
+        setup_url:
+          type: string
+          title: Setup Url
+          description: URL to open in popup/browser for channel setup
+        session_id:
+          type: string
+          title: Session Id
+        expires_at:
+          type: string
+          title: Expires At
+      type: object
+      required:
+      - setup_url
+      - session_id
+      - expires_at
+      title: SetupUrlResponse
+      description: Response with channel setup URL.
+    SubscriptionInfo:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: 'Subscription status: ''active'', ''expired'', ''canceled'',
+            or ''none'' (no license bound — channel cannot send/receive messages).'
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
+          description: 'Origin of the license: ''trial'' (auto-created on signup),
+            ''paddle'' (paid subscription), or ''enterprise'' (admin-granted custom
+            subscription). Null when status=''none''.'
+        tier:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tier
+          description: 'License tier: ''starter'' or ''pro''. Null when status=''none''.'
+        expires_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expires At
+          description: ISO-8601 UTC timestamp when the current billing period / license
+            ends. Null when status='none' or for perpetual enterprise licenses.
+        auto_renew:
+          type: boolean
+          title: Auto Renew
+          description: True only for an active Paddle subscription that is set to
+            renew automatically at `expires_at`. False for trial, enterprise, or any
+            Paddle subscription where the user has scheduled/performed a cancellation.
+          default: false
+      type: object
+      required:
+      - status
+      title: SubscriptionInfo
+      description: 'Subscription/license state for a channel.
+
+
+        Always present on ChannelOut. When the channel is not bound to any license
+
+        (orphaned after expiry/cancellation, or briefly between connect and
+
+        auto-assign), `status` is `"none"` and all other fields are null/false.
+
+
+        `expires_at` is `null` when no license is bound; in normal operation
+
+        every active license (trial / Paddle / Enterprise) carries an explicit
+
+        expiration date. (The schema still permits `NULL` for legacy admin-
+
+        granted rows — clients should treat that as "no announced end date".)
+
+
+        `auto_renew` is `true` only for an active Paddle subscription with no
+
+        scheduled cancellation. Once the user cancels in Paddle (or the
+
+        subscription enters a non-renewing state) it flips to `false` and the
+
+        license will lapse at `expires_at` unless resumed.'
+    TemplateComponentInput:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: 'Component type: HEADER, BODY, FOOTER, BUTTONS'
+        format:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Format
+          description: 'Header format: TEXT (media not yet supported)'
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+          description: Component text. Use {{1}}, {{2}} for positional or {{name}}
+            for named variables
+        example:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Example
+          description: Example values for variables (required by Meta for review)
+        buttons:
+          anyOf:
+          - items:
+              type: object
+            type: array
+          - type: 'null'
+          title: Buttons
+          description: Button definitions (for BUTTONS component)
+      type: object
+      required:
+      - type
+      title: TemplateComponentInput
+      description: 'A single template component for creation/update.
+
+
+        Components define the structure of a WhatsApp message template.'
+    TemplateCreateRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 512
+          pattern: ^[a-z0-9_]+$
+          title: Name
+          description: Template name. Lowercase alphanumeric and underscores only.
+            Max 512 chars.
+        category:
+          type: string
+          pattern: ^(MARKETING|UTILITY|AUTHENTICATION)$
+          title: Category
+          description: 'Template category: MARKETING, UTILITY, or AUTHENTICATION'
+        language:
+          type: string
+          title: Language
+          description: Language code (e.g., en_US, ru, es)
+        components:
+          items:
+            $ref: '#/components/schemas/TemplateComponentInput'
+          type: array
+          title: Components
+          description: Template components (HEADER, BODY, FOOTER, BUTTONS). BODY is
+            required.
+        parameter_format:
+          type: string
+          pattern: ^(positional|named)$
+          title: Parameter Format
+          description: 'Variable format: ''positional'' for {{1}}, {{2}} or ''named''
+            for {{customer_name}}'
+          default: positional
+      type: object
+      required:
+      - name
+      - category
+      - language
+      - components
+      title: TemplateCreateRequest
+      description: 'Request to create a WhatsApp message template.
+
+
+        The template will be submitted to Meta for review (status=PENDING).
+
+        Review typically takes up to 24 hours.'
+    TemplateListResponse:
+      properties:
+        templates:
+          items:
+            $ref: '#/components/schemas/TemplateOut'
+          type: array
+          title: Templates
+        total:
+          type: integer
+          title: Total
+        synced:
+          type: boolean
+          title: Synced
+          default: false
+      type: object
+      required:
+      - templates
+      - total
+      title: TemplateListResponse
+      description: List of templates.
+    TemplateOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        meta_template_id:
+          type: string
+          title: Meta Template Id
+        name:
+          type: string
+          title: Name
+        language:
+          type: string
+          title: Language
+        category:
+          type: string
+          title: Category
+        status:
+          type: string
+          title: Status
+        components:
+          items: {}
+          type: array
+          title: Components
+        parameter_format:
+          type: string
+          title: Parameter Format
+          default: positional
+        variables:
+          anyOf:
+          - $ref: '#/components/schemas/TemplateVariablesSummary'
+          - type: 'null'
+        synced_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Synced At
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - meta_template_id
+      - name
+      - language
+      - category
+      - status
+      - components
+      title: TemplateOut
+      description: Template data returned by API.
+    TemplateUpdateRequest:
+      properties:
+        components:
+          items:
+            $ref: '#/components/schemas/TemplateComponentInput'
+          type: array
+          title: Components
+          description: New components (replaces all existing)
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+          description: New category (only for REJECTED or PAUSED templates)
+      type: object
+      required:
+      - components
+      title: TemplateUpdateRequest
+      description: 'Request to update a template''s components.
+
+
+        All components are replaced entirely (partial update not supported by Meta).
+
+        Approved templates: max 10 edits per 30 days, 1 per 24 hours.'
+    TemplateVariableInfo:
+      properties:
+        position:
+          type: integer
+          title: Position
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        example:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Example
+      type: object
+      required:
+      - position
+      title: TemplateVariableInfo
+      description: Variable info for display/documentation.
+    TemplateVariablesSummary:
+      properties:
+        total_count:
+          type: integer
+          title: Total Count
+          default: 0
+        parameter_format:
+          type: string
+          title: Parameter Format
+          default: positional
+        header:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/TemplateVariableInfo'
+            type: array
+          - type: 'null'
+          title: Header
+        body:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/TemplateVariableInfo'
+            type: array
+          - type: 'null'
+          title: Body
+        buttons:
+          anyOf:
+          - items:
+              type: object
+            type: array
+          - type: 'null'
+          title: Buttons
+      type: object
+      title: TemplateVariablesSummary
+      description: Summary of all variables in a template.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key in the format mip_live_xxx. Create one on the API Keys
+        page in the portal.
+security:
+- ApiKeyAuth: []

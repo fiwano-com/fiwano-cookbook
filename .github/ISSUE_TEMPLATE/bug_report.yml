@@ -1,0 +1,43 @@
+name: 🐛 Report a problem
+description: Something in this repo is wrong — an example doesn't run, or a doc/reference error.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Use this for problems with the repo itself — an example that doesn't run, or an error in the playbook or reference docs.
+        For questions use [Discussions](https://github.com/fiwano-com/fiwano-cookbook/discussions); for account/billing email contact@fiwano.com.
+        **Never paste API keys, tokens or webhook secrets.**
+  - type: input
+    id: where
+    attributes:
+      label: Where?
+      description: The file or example this is about.
+      placeholder: PLAYBOOK.md · reference/webhooks.md · examples/...
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What's wrong?
+      description: What did you expect, and what did you find instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: For a code bug. Skip if this is a documentation error.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: For a code bug — runtime/version, OS, anything relevant.
+    validations:
+      required: false

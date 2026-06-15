@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Question / how-to
+    url: https://github.com/fiwano-com/fiwano-cookbook/discussions/categories/q-a
+    about: How do I do something with Fiwano? Ask in Discussions, not Issues.
+  - name: 💡 Feature idea for the Fiwano platform
+    url: https://github.com/fiwano-com/fiwano-cookbook/discussions/categories/ideas
+    about: Suggest a product feature or vote on existing ideas.
+  - name: 🔒 Account, billing or private support
+    url: mailto:contact@fiwano.com
+    about: Anything involving your account, credentials or billing — email us privately. Never post secrets here.

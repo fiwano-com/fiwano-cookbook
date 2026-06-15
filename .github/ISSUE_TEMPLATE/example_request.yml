@@ -1,0 +1,24 @@
+name: 📦 Request an example
+description: Ask for a specific example, language, or use case to be added.
+title: "[example] "
+labels: ["example request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want an example we don't have yet? Describe it here.
+        For open-ended product ideas, use [Discussions → Ideas](https://github.com/fiwano-com/fiwano-cookbook/discussions/categories/ideas) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What example would help you?
+      description: Language/stack, channel (WhatsApp/Instagram/Messenger), and the use case.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What are you building?
+      description: A little context helps us make the example actually useful.
+    validations:
+      required: false
