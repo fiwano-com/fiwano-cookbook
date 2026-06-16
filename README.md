@@ -21,13 +21,24 @@ We're a verified Meta Tech Provider.
 
 ## Start here: the Playbook
 
-**[`PLAYBOOK.md`](PLAYBOOK.md)** is a step-by-step integration guide in four clear steps — authenticate, connect a channel, receive messages, and reply. Read it top to bottom, or hand the whole cookbook to an AI coding agent (Cursor, Claude Code, etc.) and point it at `PLAYBOOK.md` — the playbook covers both.
+**[`PLAYBOOK.md`](PLAYBOOK.md)** is the entry point — it points you at the step-by-step quickstart and maps out where everything else lives. The integration guide itself, **[`reference/quickstart.md`](reference/quickstart.md)**, walks you through it in four clear steps — authenticate, connect a channel, receive messages, and reply (plus an optional fifth for messaging outside the 24-hour window). Read it top to bottom — or hand the whole cookbook to an AI coding agent (see below).
+
+## Using this with an AI coding agent
+
+This cookbook is built to hand straight to an AI agent (Cursor, Claude Code, etc.). You keep working in **your own project** — the cookbook is just the agent's reference:
+
+1. Copy this cookbook into your project (for example as a `fiwano/` folder), or clone it next to your code and give the agent access to it.
+2. Point the agent at the playbook:
+   > "Use `fiwano/PLAYBOOK.md` to integrate Fiwano. Start with `reference/quickstart.md`, then open the referenced files as needed."
+
+The agent then reads only what each step references, instead of loading everything at once.
 
 ## What's inside
 
 | Path | What |
 |------|------|
-| [`PLAYBOOK.md`](PLAYBOOK.md) | Step-by-step integration guide — **start here** |
+| [`PLAYBOOK.md`](PLAYBOOK.md) | Entry point + reference index — **start here** |
+| [`reference/quickstart.md`](reference/quickstart.md) | The step-by-step integration guide |
 | [`reference/`](reference/) | The full API reference: `openapi.yaml` (the machine-readable contract) plus topic docs, mirrored from [fiwano.com/documentation](https://fiwano.com/documentation) |
 
 ## Prefer no-code?
