@@ -304,7 +304,7 @@ GET /api/v1/channels/{channel_id}/profile/{user_id}
 
 Pass the `data.from` value (IGSID for Instagram, PSID for Facebook) as `user_id`. It returns:
 
-- **Instagram** — `username`, `name`, `profile_pic`, `follower_count`, `is_verified`
+- **Instagram** — `username`, `name`, `profile_pic`, `follower_count`, `is_verified_user`
 - **Facebook** — `first_name`, `last_name`, `profile_pic`
 
 WhatsApp is not supported (the name is already in the webhook). Results are cached for 5 minutes — the response's `cached` flag tells you if it was a cache hit. Full request/response and status codes are in the [API Reference](openapi.yaml).

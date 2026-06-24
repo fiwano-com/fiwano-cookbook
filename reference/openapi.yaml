@@ -240,7 +240,7 @@ paths:
       description: "Fetch sender profile from Meta Graph API.\n\nReturns profile data\
         \ for a user who messaged your channel.\nResults are cached for 5 minutes\
         \ to reduce Meta API calls.\n\n- Instagram: username, name, profile_pic, follower_count,\
-        \ is_verified\n- Facebook: first_name, last_name, profile_pic\n- WhatsApp:\
+        \ is_verified_user\n- Facebook: first_name, last_name, profile_pic\n- WhatsApp:\
         \ not supported (name comes inline in webhooks via data.from_name)\n\nArgs:\n\
         \    channel_id: Channel ID\n    user_id: Sender identifier (IGSID for Instagram,\
         \ PSID for Facebook)\n\nReturns:\n    SenderProfileResponse with profile data\n\

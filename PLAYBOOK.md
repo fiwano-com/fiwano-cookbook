@@ -44,6 +44,13 @@ API as native nodes (credential, channel operations, a trigger node that verifie
 signatures, and send text/media/template). The quickstart's four steps map
 directly onto them. Start with [`reference/n8n.md`](reference/n8n.md).
 
+The package also ships **two ready-to-import templates** that cover the core loop
+with a handful of nodes each: **Connect a Channel** (steps 1–2) and the
+**Universal Auto-Responder** — the ping-pong pattern that answers every inbound
+message across WhatsApp, Instagram and Messenger (steps 3–4). Import them and you
+have a working integration before writing a single expression. See
+[`reference/n8n.md`](reference/n8n.md).
+
 ## Good to know
 
 - Prefer [`reference/openapi.yaml`](reference/openapi.yaml) for exact field names, types and status codes; the prose explains the flow.
