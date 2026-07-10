@@ -55,6 +55,30 @@ Starts your workflow for any of these events (filter by event type in node setti
 | `message.sent` | WhatsApp |
 | `message.failed` | WhatsApp |
 
+### Common workflow patterns
+
+The Fiwano node is intentionally small: it gives n8n a reliable transport layer
+for WhatsApp, Instagram DM and Facebook Messenger, then leaves the workflow logic
+to n8n and the tools you connect around it.
+
+| Pattern | How to build it |
+|---|---|
+| WhatsApp AI agent or chatbot | `Fiwano Trigger` receives `message.received` → your AI/model/tool nodes decide the answer → `Fiwano` sends the reply. Use WhatsApp templates only when you need to start or reopen a conversation outside the 24-hour window. |
+| n8n WhatsApp trigger | Use `Fiwano Trigger` with **Specific Channel** for one WhatsApp number, or **All Active Channels** when one workflow should handle every connected channel. |
+| Instagram DM automation | Use the same trigger/action pair on an Instagram channel. Keep the workflow focused on inbound support, opt-in lead qualification and customer replies; do not build cold-DM scraping or spam automation. |
+| Facebook Messenger workflow | Use `channel_type: "facebook"` branches when a Messenger Page needs different copy or routing. It is lower-volume than WhatsApp, but useful when customers already start on Messenger. |
+| One workflow for all Meta channels | Use **All Active Channels**, then branch on `channel_type` (`whatsapp`, `instagram`, `facebook`) only where the channel rules differ. |
+
+### When to use Fiwano with n8n
+
+Use it when you want n8n to own the automation — AI logic, routing, CRM updates,
+memory, approvals, escalation — and you only need a clean way to receive and send
+messages on Meta's official channels.
+
+Do not use it as a bulk cold-outreach engine. WhatsApp, Instagram and Messenger
+all have messaging-window and opt-in rules; Fiwano follows the official APIs and
+does not bypass Meta policy.
+
 ### Webhook auto-setup
 
 The trigger can wire its own webhook onto your channels, so you don't have to call **Update Webhook** by hand. Pick a **Webhook Auto-Setup** mode and attach a Fiwano API credential. The auto modes (**All Active Channels** / **Specific Channel**) need it to call the API — if it's missing, activation fails with a clear error. In **Manual** the credential is optional, used only to read a default webhook secret:

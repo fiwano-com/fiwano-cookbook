@@ -7,6 +7,18 @@ the recipient row in [Capabilities](capabilities.md#channel-capabilities). Full
 request/response schemas are in the [API Reference](openapi.yaml); this page
 is the task guide.
 
+### Send WhatsApp messages with the API
+
+For a normal WhatsApp reply inside the 24-hour customer service window, use the
+plain text endpoint below with a WhatsApp `channel_id` and the recipient's phone
+number. You authenticate with your Fiwano `X-API-Key`; you do not need a separate
+Meta or WhatsApp API key in your application.
+
+Outside the 24-hour window, WhatsApp requires an approved template message. That
+uses `/api/v1/messages/send-template` and is described in
+[Template messages](#template-messages). Instagram DM and Facebook Messenger use
+the same text endpoint for ordinary replies, with IGSID or PSID as `recipient`.
+
 ### Text messages
 
 `POST /api/v1/messages/send` — works on all channel types.

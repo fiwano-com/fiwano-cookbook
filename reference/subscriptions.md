@@ -61,3 +61,50 @@ A channel can **send and receive messages only while its subscription is
 > **Tip.** Treat `status` as the single source of truth for whether a channel can
 > operate. Do not infer it yourself from `expires_at` — during the Paddle grace
 > window an `active` channel can legitimately have an `expires_at` in the past.
+
+### Checking available slots
+
+Use `GET /api/v1/subscriptions` when an external service needs to decide whether
+it can start a new channel connection flow. The endpoint is read-only and returns
+all subscriptions plus aggregate slot availability:
+
+```bash
+curl -H "X-API-Key: $FIWANO_API_KEY" \
+  https://fiwano.com/api/v1/subscriptions
+```
+
+```json
+{
+  "available_slots": {
+    "whatsapp": { "total": 0, "starter": 0, "pro": 0 },
+    "instagram": { "total": 1, "starter": 0, "pro": 1 },
+    "facebook": { "total": 1, "starter": 0, "pro": 1 }
+  },
+  "subscriptions": [
+    {
+      "id": "a1b2c3d4e5f67890",
+      "status": "active",
+      "source": "trial",
+      "tier": "pro",
+      "auto_renew": false,
+      "assigned_channels": {
+        "whatsapp": {
+          "channel_id": "1111222233334444",
+          "channel_type": "whatsapp",
+          "name": "Acme Support",
+          "is_active": false
+        },
+        "instagram": null,
+        "facebook": null
+      }
+    }
+  ]
+}
+```
+
+Use `available_slots.<channel_type>.total > 0` as the signal that a new channel
+of that type can be connected. An inactive channel can still occupy a slot
+because Fiwano preserves the binding for reconnect. In `available_slots`, `total`
+is the sum of the currently free `starter` and `pro` slots for that channel type.
+In each subscription, `assigned_channels` shows which channel is assigned to the
+subscription for each type; `null` means no channel is assigned there.

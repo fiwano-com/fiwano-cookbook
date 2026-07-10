@@ -4,6 +4,24 @@ When a user messages your connected channel, Fiwano delivers the message — and
 
 Set `webhook_url` and choose which `webhook_events` to receive when you connect a channel (see [Channels](channels.md)); by default no events are enabled. If the channel has a [`webhook_secret`](channels.md#webhook-secret), each delivery is signed so you can verify it came from Fiwano — strongly recommended. Until you set a secret, deliveries are sent unsigned.
 
+### WhatsApp webhook setup and payload
+
+For WhatsApp, enable `message.received` on the channel and point `webhook_url` at
+your public HTTPS endpoint. Fiwano receives the original Meta webhook from the
+WhatsApp Cloud API, resolves the connected channel, normalizes the payload, signs
+it if you configured a `webhook_secret`, and delivers it to you.
+
+The useful difference from wiring Meta directly is that the webhook envelope is
+the same shape across all three channels:
+
+- WhatsApp senders arrive as phone numbers in `data.from`.
+- Instagram senders arrive as IGSID values in `data.from`.
+- Facebook Messenger senders arrive as PSID values in `data.from`.
+
+The top-level fields (`event`, `channel_id`, `channel_type`, `timestamp`, `data`)
+stay stable, so one receiver can handle WhatsApp webhooks, Instagram webhooks and
+Messenger webhooks without three separate Meta parsers.
+
 ### Verifying Signatures
 
 When the channel has a `webhook_secret`, every webhook request includes an `X-Webhook-Signature` header:

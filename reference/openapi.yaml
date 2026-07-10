@@ -14,6 +14,38 @@ info:
 servers:
 - url: https://fiwano.com
 paths:
+  /api/v1/subscriptions:
+    get:
+      tags:
+      - api
+      summary: List Subscriptions
+      description: 'List subscriptions and free channel slots for the authenticated
+        user.
+
+
+        Use this endpoint before starting a channel setup flow to check whether a
+
+        new WhatsApp, Instagram, or Facebook channel can be connected right now.
+
+        Slot availability follows the same billing gate as POST
+
+        /api/v1/channels/setup-url: a channel type can be connected when
+
+        available_slots.<type>.total > 0.'
+      operationId: list_subscriptions_api_v1_subscriptions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionsResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/channels:
     get:
       tags:
@@ -775,6 +807,27 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AvailableSlotsByTier:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: Total free active slots for this channel type.
+        starter:
+          type: integer
+          title: Starter
+          description: Free Starter subscription slots for this channel type.
+        pro:
+          type: integer
+          title: Pro
+          description: Free Pro subscription slots for this channel type.
+      type: object
+      required:
+      - total
+      - starter
+      - pro
+      title: AvailableSlotsByTier
+      description: Free active subscription slots for one channel type.
     ChannelListResponse:
       properties:
         channels:
@@ -1316,8 +1369,19 @@ components:
           - type: object
           - type: 'null'
           title: Profile
-          description: Profile data from Meta. Fields vary by channel type. null if
-            profile is unavailable.
+          description: 'Profile data from Meta, passed through as-is. Fields vary
+            by channel type. null if profile is unavailable. Instagram: username,
+            name, profile_pic, follower_count, is_verified_user. Facebook: first_name,
+            last_name, profile_pic. WhatsApp is not supported.'
+          examples:
+          - follower_count: 46
+            is_verified_user: false
+            name: Roman Babakin
+            profile_pic: https://scontent.cdninstagram.com/v/t51.2885-19/...
+            username: winnerzzz
+          - first_name: Roman
+            last_name: Babakin
+            profile_pic: https://platform-lookaside.fbsbx.com/platform/profilepic/...
         cached:
           type: boolean
           title: Cached
@@ -1366,6 +1430,41 @@ components:
       - expires_at
       title: SetupUrlResponse
       description: Response with channel setup URL.
+    SubscriptionAssignedChannel:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+          description: Fiwano channel ID assigned to this subscription.
+        channel_type:
+          type: string
+          title: Channel Type
+          description: 'Channel type: whatsapp, instagram, or facebook.'
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Human-readable channel name when available.
+        is_active:
+          type: boolean
+          title: Is Active
+          description: Whether the bound channel is currently active.
+      type: object
+      required:
+      - channel_id
+      - channel_type
+      - is_active
+      title: SubscriptionAssignedChannel
+      description: 'Channel currently assigned to this subscription for one channel
+        type.
+
+
+        An inactive channel still occupies its slot while it remains bound to an
+
+        active subscription. This preserves the owner''s reconnect path and matches
+
+        the billing gate used by channel setup.'
     SubscriptionInfo:
       properties:
         status:
@@ -1431,6 +1530,98 @@ components:
         subscription enters a non-renewing state) it flips to `false` and the
 
         license will lapse at `expires_at` unless resumed.'
+    SubscriptionOut:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: Fiwano subscription ID.
+        status:
+          type: string
+          title: Status
+          description: 'Subscription status: active, expired, or canceled.'
+        source:
+          type: string
+          title: Source
+          description: 'Origin: trial, paddle, or enterprise.'
+        tier:
+          type: string
+          title: Tier
+          description: 'Subscription tier: starter or pro.'
+        starts_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Starts At
+          description: ISO-8601 UTC timestamp when the subscription started.
+        expires_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expires At
+          description: ISO-8601 UTC timestamp when the current period ends. Treat
+            status as the source of truth for operability; Paddle grace can leave
+            an active subscription with expires_at in the past.
+        auto_renew:
+          type: boolean
+          title: Auto Renew
+          description: True only for an active Paddle subscription set to renew automatically.
+          default: false
+        assigned_channels:
+          additionalProperties:
+            anyOf:
+            - $ref: '#/components/schemas/SubscriptionAssignedChannel'
+            - type: 'null'
+          type: object
+          title: Assigned Channels
+          description: Channels assigned to this subscription by channel type. Values
+            are null when no channel is assigned for that type. Use top-level available_slots
+            for current connection availability.
+      type: object
+      required:
+      - id
+      - status
+      - source
+      - tier
+      - assigned_channels
+      title: SubscriptionOut
+      description: 'A Fiwano subscription/license and its channel-slot availability.
+
+
+        Public API uses the product term "subscription"; internally this maps to a
+
+        License row. One subscription grants one slot for each channel type.'
+    SubscriptionsResponse:
+      properties:
+        subscriptions:
+          items:
+            $ref: '#/components/schemas/SubscriptionOut'
+          type: array
+          title: Subscriptions
+        total:
+          type: integer
+          title: Total
+          description: Total number of subscriptions returned.
+        active_total:
+          type: integer
+          title: Active Total
+          description: Number of currently active subscriptions.
+        available_slots:
+          additionalProperties:
+            $ref: '#/components/schemas/AvailableSlotsByTier'
+          type: object
+          title: Available Slots
+          description: Free active subscription slots by channel type, split by tier.
+            `total` is the sum of Starter and Pro free slots.
+      type: object
+      required:
+      - subscriptions
+      - total
+      - active_total
+      - available_slots
+      title: SubscriptionsResponse
+      description: Subscriptions and aggregate slot availability for the authenticated
+        user.
     TemplateComponentInput:
       properties:
         type:
