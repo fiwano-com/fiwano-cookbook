@@ -27,11 +27,11 @@ paths:
 
         new WhatsApp, Instagram, or Facebook channel can be connected right now.
 
-        Slot availability follows the same billing gate as POST
+        A positive `available_slots.<type>.total` means a new channel can be added.
 
-        /api/v1/channels/setup-url: a channel type can be connected when
+        POST /api/v1/channels/setup-url also permits reconnecting an existing
 
-        available_slots.<type>.total > 0.'
+        inactive channel that still has an operable reserved slot.'
       operationId: list_subscriptions_api_v1_subscriptions_get
       responses:
         '200':
@@ -113,13 +113,33 @@ paths:
       tags:
       - api
       summary: Update Channel
-      description: 'Update channel webhook settings.
+      description: 'Update channel webhook settings, or move the channel between subscriptions.
 
 
-        Set webhook_url to receive incoming messages. Must be HTTPS (or http://localhost
-        for dev).
+        Set webhook_url to receive incoming messages. Must use HTTPS and cannot target
+        loopback.
 
-        Optionally provide a custom webhook_secret for HMAC verification.'
+        Optionally provide a custom webhook_secret for HMAC verification.
+
+
+        `subscription_id` binds the channel to another subscription, or — when sent
+        as
+
+        an empty string — releases its subscription slot so a different channel of
+        the
+
+        same type can be connected. Releasing a slot requires the channel to be
+
+        deactivated first via DELETE /api/v1/channels/{channel_id}; this is deliberate,
+
+        so a slot is never freed as a side effect of an unrelated settings update.
+
+
+        Fields left out (or sent as null) are not changed, and the whole request is
+
+        applied atomically: if the subscription change is rejected, the webhook settings
+
+        are not updated either.'
       operationId: update_channel_api_v1_channels__channel_id__patch
       parameters:
       - name: channel_id
@@ -150,15 +170,19 @@ paths:
     delete:
       tags:
       - api
-      summary: Delete Channel
+      summary: Deactivate channel
       description: 'Deactivate a channel (soft delete).
 
 
-        The channel stops sending and receiving, but is not erased — its channel_id
+        The channel stops sending and receiving, but is not erased — its channel_id,
 
-        and history are preserved so it can be reconnected later via a new OAuth
+        history and ownership claim are preserved so the same Fiwano account can
 
-        flow. Fiwano unsubscribes the channel''s Meta webhook resource only when safe:
+        reconnect it later via a new OAuth flow. Another Fiwano account cannot claim
+
+        the Meta identity after deactivation; ownership release requires support.
+
+        Fiwano unsubscribes the channel''s Meta webhook resource only when safe:
 
         a WABA subscription is kept if another active WhatsApp channel uses the same
 
@@ -190,8 +214,8 @@ paths:
       tags:
       - api
       summary: Create Setup Url
-      description: 'Generate a URL for connecting a channel on behalf of a user (programmatic
-        flow).
+      description: 'Generate a URL for connecting or reconnecting a channel on behalf
+        of a user.
 
 
         The client opens the returned `setup_url` in a popup or browser. After the
@@ -208,7 +232,16 @@ paths:
         POST /api/v1/redirects), otherwise the request is rejected. The setup URL
         is
 
-        valid until the `expires_at` returned in the response.'
+        valid until the `expires_at` returned in the response.
+
+
+        There is intentionally no separate API reconnect endpoint. When Meta returns
+
+        the identity of an existing inactive channel, setup reactivates that same
+
+        channel row and returns its existing channel_id. A genuinely new eligible
+
+        identity is preferred when both new and inactive assets are available.'
       operationId: create_setup_url_api_v1_channels_setup_url_post
       requestBody:
         required: true
@@ -270,9 +303,11 @@ paths:
       - api
       summary: Get Sender Profile
       description: "Fetch sender profile from Meta Graph API.\n\nReturns profile data\
-        \ for a user who messaged your channel.\nResults are cached for 5 minutes\
-        \ to reduce Meta API calls.\n\n- Instagram: username, name, profile_pic, follower_count,\
-        \ is_verified_user\n- Facebook: first_name, last_name, profile_pic\n- WhatsApp:\
+        \ for a user who messaged your channel.\nSuccessful results are cached for\
+        \ 5 minutes to reduce Meta API calls.\nUnavailable results are cached briefly\
+        \ so newly indexed conversations recover quickly.\n\n- Instagram: username,\
+        \ name, profile_pic, follower_count, is_verified_user\n- Facebook: display\
+        \ name in first_name; last_name and profile_pic when available\n- WhatsApp:\
         \ not supported (name comes inline in webhooks via data.from_name)\n\nArgs:\n\
         \    channel_id: Channel ID\n    user_id: Sender identifier (IGSID for Instagram,\
         \ PSID for Facebook)\n\nReturns:\n    SenderProfileResponse with profile data\n\
@@ -338,7 +373,9 @@ paths:
       description: 'Add an allowed redirect URI.
 
 
-        Must be HTTPS. Supports wildcard patterns like https://*.example.com/*'
+        Must be HTTPS. Explicit ports are supported. Exact URIs are preferred;
+
+        constrained wildcard patterns like https://*.example.com/* remain supported.'
       operationId: add_redirect_api_v1_redirects_post
       requestBody:
         required: true
@@ -393,29 +430,13 @@ paths:
       description: 'Send a text message through a connected channel.
 
 
-        Only text messages are supported here (use /api/v1/messages/send-media for
+        Recipient format is a phone number without `+` for WhatsApp, an IGSID for
 
-        media and /api/v1/messages/send-template for WhatsApp templates).
+        Instagram, and a PSID for Messenger. Text must be non-blank and stay within
 
+        the platform limit. Transient failures are queued for background retry;
 
-        Recipient format by channel:
-
-        - WhatsApp: phone number without + (e.g. "1234567890")
-
-        - Instagram: Instagram-scoped user ID (IGSID)
-
-        - Facebook Messenger: Page-scoped user ID (PSID)
-
-
-        `text` has a per-platform hard limit (WhatsApp 4096, Facebook 2000,
-
-        Instagram 1000); oversize text is rejected with 400 `text_too_long` before
-
-        Meta is called. On a transient Meta failure the response is 200 with
-
-        `status: "queued"` (retried in the background); on a permanent error it is
-
-        200 with `success: false`, `status: "failed"`.'
+        permanent errors return `success: false` and are not retried.'
       operationId: send_message_api_v1_messages_send_post
       requestBody:
         required: true
@@ -475,28 +496,16 @@ paths:
       tags:
       - api
       summary: Send Media Message
-      description: 'Send a media message through a connected channel.
+      description: 'Send a media message through a connected Pro channel.
 
 
-        Requires a Pro license. Meta fetches the file directly from `media_url`
+        Meta fetches `media_url` directly; Fiwano does not store the outbound file.
 
-        — Fiwano does not download or store it. For non-public content, use a
+        Use a signed URL for non-public content and keep it valid for the retry
 
-        signed URL (S3 presigned, GCS Signed, R2 signed, or HMAC-signed URL).
+        window. Supported types are image, audio, video, and document. Transient
 
-
-        Supported media types per channel:
-
-        - WhatsApp: image, audio, video, document
-
-        - Instagram: image, audio, video, document
-
-        - Facebook Messenger: image, audio, video, document
-
-
-        On failure, returns 200 with `success=false` and `error_code` (Meta
-
-        code, when applicable). See public API docs for the error code table.'
+        failures are queued; permanent payload or policy errors are not retried.'
       operationId: send_media_message_api_v1_messages_send_media_post
       requestBody:
         required: true
@@ -774,17 +783,14 @@ paths:
       tags:
       - api
       summary: Send Template Message
-      description: "Send a WhatsApp template message.\n\nUse this to initiate conversations\
-        \ outside the 24-hour messaging window.\nOnly APPROVED templates can be sent.\n\
-        \n## Variables\n\nEach template may have variables in HEADER, BODY, and BUTTON\
-        \ components.\nAll variables must be provided — there are no defaults.\n\n\
-        **Positional format** (for templates created with {{1}}, {{2}}):\n```json\n\
-        {\n    \"variables\": {\n        \"header\": [\"Summer Sale\"],\n        \"\
-        body\": [\"Pablo\", \"ORD-123\", \"25%\"],\n        \"buttons\": [{\"index\"\
-        : 0, \"value\": \"promo25\"}]\n    }\n}\n```\n\n**Named format** (for templates\
-        \ created with {{customer_name}}):\n```json\n{\n    \"variables\": {\n   \
-        \     \"body\": {\"customer_name\": \"Pablo\", \"order_number\": \"ORD-123\"\
-        }\n    }\n}\n```\n\nOmit `variables` entirely if the template has no variables."
+      description: 'Send an approved WhatsApp template without automatic retry.
+
+
+        Variables must match the cached template definition. Positional variables
+
+        use arrays such as `{"body": ["Pablo", "ORD-123"]}`; named variables use
+
+        objects such as `{"body": {"customer_name": "Pablo"}}`.'
       operationId: send_template_message_api_v1_messages_send_template_post
       requestBody:
         required: true
@@ -798,7 +804,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendTemplateResponse'
+                $ref: '#/components/schemas/SendMessageResponse'
         '422':
           description: Validation Error
           content:
@@ -964,9 +970,11 @@ components:
         webhook_url:
           anyOf:
           - type: string
+            maxLength: 500
           - type: 'null'
           title: Webhook Url
-          description: HTTPS URL for incoming webhook delivery
+          description: HTTPS URL for incoming webhook delivery. Explicit ports are
+            supported.
         webhook_secret:
           anyOf:
           - type: string
@@ -985,6 +993,23 @@ components:
           title: Webhook Events
           description: List of event types to deliver. Available events depend on
             channel type.
+        subscription_id:
+          anyOf:
+          - type: string
+            maxLength: 16
+          - type: 'null'
+          title: Subscription Id
+          description: 'Move the channel to another subscription, or release its subscription
+            slot. Pass a subscription ID from GET /api/v1/subscriptions to bind the
+            channel to it — allowed for an active or a deactivated channel, and the
+            target subscription must be active with a free slot for this channel type.
+            Pass an empty string ("") to unbind: this frees the slot so a different
+            channel of the same type can be connected, and is allowed only for a channel
+            already deactivated via DELETE /api/v1/channels/{channel_id}. Omit the
+            field (or send null) to leave the current binding untouched. Note that
+            moving a channel from a Pro to a Starter subscription immediately removes
+            access to media and template sending, and that unbinding is effectively
+            permanent: reconnecting that channel later requires a free slot again.'
       type: object
       title: ChannelUpdateRequest
       description: Request to update channel settings.
@@ -1010,6 +1035,12 @@ components:
             type: array
           - type: 'null'
           title: Webhook Events
+        subscription:
+          anyOf:
+          - $ref: '#/components/schemas/SubscriptionInfo'
+          - type: 'null'
+          description: Subscription state of the channel after the update. Same shape
+            as `subscription` on GET /api/v1/channels/{channel_id}.
       type: object
       required:
       - id
@@ -1024,10 +1055,12 @@ components:
         webhook_url:
           anyOf:
           - type: string
+            maxLength: 500
           - type: 'null'
           title: Webhook Url
-          description: HTTPS URL for incoming webhook delivery. If provided, webhook
-            is configured automatically — no separate PATCH needed.
+          description: HTTPS URL for incoming webhook delivery. Explicit ports are
+            supported. If provided, webhook is configured automatically — no separate
+            PATCH needed.
         webhook_secret:
           anyOf:
           - type: string
@@ -1125,8 +1158,11 @@ components:
       properties:
         uri_pattern:
           type: string
+          maxLength: 500
           title: Uri Pattern
-          description: 'HTTPS URL pattern. Supports wildcards: https://*.example.com/*'
+          description: HTTPS redirect URI. Explicit ports are supported. Prefer an
+            exact URI; wildcards are limited to paths, queries, or a complete left-most
+            hostname label such as https://*.example.com/*
       type: object
       required:
       - uri_pattern
@@ -1249,8 +1285,9 @@ components:
             Instagram, PSID for Facebook)
         text:
           type: string
+          minLength: 1
           title: Text
-          description: Message text
+          description: Message text containing at least one non-whitespace character
       type: object
       required:
       - channel_id
@@ -1279,15 +1316,15 @@ components:
           - type: 'null'
           title: Error Code
           description: Meta error code (when failure originates at Meta). See documentation
-            for common media error codes.
+            for common send error codes.
         status:
           anyOf:
           - type: string
           - type: 'null'
           title: Status
           description: 'Delivery state: ''sent'' (accepted by Meta), ''queued'' (transient
-            failure — retried in the background), or ''failed'' (permanent error;
-            see error/error_code).'
+            text/media failure — retried in the background), or ''failed'' (terminal
+            for this request; see error/error_code). Template sends are never queued.'
       type: object
       required:
       - success
@@ -1333,26 +1370,6 @@ components:
         \ {\"body\": [\"Pablo\", \"ORD-123\"]}\n\nFor named templates, provide variables\
         \ as objects:\n    {\"body\": {\"customer_name\": \"Pablo\", \"order_number\"\
         : \"ORD-123\"}}"
-    SendTemplateResponse:
-      properties:
-        success:
-          type: boolean
-          title: Success
-        message_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Message Id
-        error:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Error
-      type: object
-      required:
-      - success
-      title: SendTemplateResponse
-      description: Response after sending a template message.
     SenderProfileResponse:
       properties:
         channel_id:
@@ -1369,10 +1386,10 @@ components:
           - type: object
           - type: 'null'
           title: Profile
-          description: 'Profile data from Meta, passed through as-is. Fields vary
-            by channel type. null if profile is unavailable. Instagram: username,
-            name, profile_pic, follower_count, is_verified_user. Facebook: first_name,
-            last_name, profile_pic. WhatsApp is not supported.'
+          description: 'Profile data from Meta, normalized and minimized by channel
+            type. null if profile is unavailable. Instagram: username, name, profile_pic,
+            follower_count, is_verified_user. Facebook: display name in first_name;
+            last_name and profile_pic when available from Meta. WhatsApp is not supported.'
           examples:
           - follower_count: 46
             is_verified_user: false
@@ -1403,8 +1420,10 @@ components:
           description: 'Channel type: whatsapp, instagram, or facebook'
         redirect_uri:
           type: string
+          maxLength: 500
           title: Redirect Uri
-          description: URL to redirect after OAuth completion. Must be in allowed_redirects.
+          description: Exact HTTPS URL to redirect after OAuth completion. Explicit
+            ports are supported. Must match allowed_redirects.
       type: object
       required:
       - channel_type
@@ -1467,6 +1486,15 @@ components:
         the billing gate used by channel setup.'
     SubscriptionInfo:
       properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+          description: Subscription ID this channel is bound to — the same value as
+            `subscriptions[].id` in GET /api/v1/subscriptions. Pass it back in PATCH
+            /api/v1/channels/{channel_id} to move the channel between subscriptions.
+            Null when status='none'.
         status:
           type: string
           title: Status

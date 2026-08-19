@@ -107,4 +107,10 @@ of that type can be connected. An inactive channel can still occupy a slot
 because Fiwano preserves the binding for reconnect. In `available_slots`, `total`
 is the sum of the currently free `starter` and `pro` slots for that channel type.
 In each subscription, `assigned_channels` shows which channel is assigned to the
-subscription for each type; `null` means no channel is assigned there.
+subscription for each type; `null` means no channel is assigned there. The reverse
+mapping is on the channel itself: `subscription.id` in `GET /api/v1/channels`.
+
+To move a channel to a different subscription, or to release a slot so another
+channel of the same type can take it, use `subscription_id` in
+`PATCH /api/v1/channels/{channel_id}` — see
+[subscription slots](channels.md#subscription-slots).

@@ -35,6 +35,8 @@ Use this to connect **your own** channels, no code required.
 
 Saving a webhook URL in the Portal does **not** create a `webhook_secret`. Set one
 explicitly so incoming deliveries are signed — see [Webhook secret](#webhook-secret).
+The URL must be an absolute HTTPS URL reachable from Fiwano. Explicit ports from
+1 to 65535 are supported; embedded credentials and URL fragments are not.
 
 ### Option B: Via API (programmatic)
 
@@ -52,6 +54,25 @@ curl -X POST https://fiwano.com/api/v1/redirects \
   -d '{"uri_pattern": "https://yourapp.com/callback"}'
 ```
 
+Redirect URI patterns must use HTTPS and cannot target localhost or a loopback
+address. Explicit ports from 1 to 65535 are supported, including non-standard
+HTTPS ports such as `https://yourapp.com:4426/callback`. Exact URIs are safest
+and recommended. When a wildcard is necessary, it may appear in the path/query
+or as one complete left-most hostname label (`*.example.com`), but cannot replace
+the whole hostname, part of a label, or the port. Embedded credentials, URL
+fragments, and the reserved query keys `code`, `status`, `channel_type`, and
+`error` are rejected.
+
+To associate a setup flow with your authenticated tenant or administrator,
+generate a high-entropy, single-use opaque nonce, store it server-side with that
+context, and put only the nonce in the redirect URI. Register a narrowly scoped
+pattern such as `https://yourapp.com/callback?state=*`, then request the setup URL
+with `https://yourapp.com/callback?state=BASE64URL_NONCE`. Fiwano preserves
+`state` and appends its own parameters, for example
+`?state=BASE64URL_NONCE&code=...&status=success&channel_type=whatsapp`. Use a
+URL-safe value and do not place tenant/user identifiers or other sensitive data
+directly in the URI.
+
 You manage these with `GET /api/v1/redirects` and `DELETE /api/v1/redirects/{id}`.
 
 **Step 2 — Request a setup URL.** Pass one of your whitelisted redirect URIs. The
@@ -64,6 +85,12 @@ curl -X POST https://fiwano.com/api/v1/channels/setup-url \
   -H "Content-Type: application/json" \
   -d '{"channel_type": "whatsapp", "redirect_uri": "https://yourapp.com/callback"}'
 ```
+
+The same endpoint also reconnects channels; there is no separate reconnect API.
+If the Meta identity already belongs to one of your inactive channels, Fiwano
+reactivates that row and `exchange-code` returns the existing `channel_id`. When
+both a genuinely new asset and an inactive asset are available, the new asset
+is preferred.
 
 **Step 3 — User completes Meta OAuth.** After approval, the user is redirected to
 your `redirect_uri` with a one-time `code` parameter:
@@ -123,8 +150,8 @@ POSTs each one to your `webhook_url`, and your endpoint **must respond with HTTP
 within ~5 seconds**. A non-2xx response or a timeout counts as a failed delivery: Fiwano
 **retries with backoff and emails you** — a warning after the 3rd failed attempt and an
 alert when retries are exhausted. So enable **only the events you actually handle**, and
-return 2xx as soon as you've accepted the payload (do slower work afterwards). Incoming
-messages are saved on our side even if relay fails. Full delivery and retry behavior:
+   return 2xx as soon as you've accepted the payload (do slower work afterwards). Successfully
+   delivered webhook payloads are not retained for relay; failures are stored encrypted for retries. Full behavior:
 **[Webhooks → Retry Policy](webhooks.md#retry-policy)**.
 
 ### Webhook secret
@@ -178,7 +205,7 @@ switch your verifier to the new secret at the same moment, or signatures will mi
 |---|---|
 | List all channels (active and inactive), each with its current subscription state | `GET /api/v1/channels` |
 | Inspect one channel | `GET /api/v1/channels/{id}` |
-| Update webhook URL / secret / events | `PATCH /api/v1/channels/{id}` |
+| Update webhook URL / secret / events, or the subscription binding | `PATCH /api/v1/channels/{id}` |
 | Deactivate a channel | `DELETE /api/v1/channels/{id}` |
 
 Each channel carries a `subscription` block describing its billing state — see
@@ -187,10 +214,47 @@ combinations mean. Full field lists live in the **[API Reference](openapi.yaml)*
 
 **Deactivation is a soft delete.** `DELETE` stops the channel from sending and
 receiving, but does not erase it — its `channel_id` and history are preserved so
-you can reconnect later. Fiwano also unsubscribes the channel's Meta webhook
+you can reconnect later. The channel also remains owned by the same Fiwano
+account: deactivation does not release its WhatsApp number, Instagram account or
+Facebook Page for connection to another Fiwano account. If the channel must move
+between accounts, contact `contact@fiwano.com`.
+
+Fiwano also unsubscribes the channel's Meta webhook
 resource only when it is safe to: a WABA subscription is kept if another active
 WhatsApp channel uses the same WABA, and a Page subscription is kept if another
 active Instagram/Facebook channel uses the same Page.
+
+### Subscription slots
+
+Each subscription grants **one slot per channel type** — one WhatsApp, one
+Instagram, one Facebook. A slot stays occupied while a channel is bound to it,
+**including a deactivated channel**: the binding is what lets you reconnect that
+channel later without buying another subscription.
+
+`GET /api/v1/subscriptions` shows which channel sits in each slot and how many
+slots are free; each channel reports its own `subscription.id` in return.
+
+Send `subscription_id` to `PATCH /api/v1/channels/{channel_id}` to change that. A
+subscription ID moves the channel there — no downtime, and it does not have to be
+deactivated first, but a move to a Starter subscription stops media and template
+sending immediately. An empty string releases the slot, and that is allowed only
+for a channel already deactivated with `DELETE /api/v1/channels/{channel_id}`, so
+a slot is never freed as a side effect of a settings update.
+
+**Releasing a slot is effectively permanent.** Once another channel takes the
+freed slot, the released one can no longer be reconnected until a slot is free
+again. It is not erased and its Meta identity stays owned by your Fiwano account —
+but treat the release as retiring that channel, not pausing it.
+
+Replacing a channel when you have a single subscription:
+
+```text
+GET    /api/v1/subscriptions           → find the subscription and its occupied slot
+DELETE /api/v1/channels/{old_id}       → deactivate the channel you are replacing
+PATCH  /api/v1/channels/{old_id}       → {"subscription_id": ""} frees the slot
+POST   /api/v1/channels/setup-url      → user connects the new Meta account
+POST   /api/v1/channels/exchange-code  → new channel takes the free slot
+```
 
 ### Reconnecting an inactive channel
 
@@ -206,5 +270,6 @@ Facebook Page):
 - Reconnecting requires an **active license**: the channel must still hold one, or
   you must have a free license slot. Otherwise the flow is refused — attach a
   license in Billing first.
-- A Meta account that is currently active under a different Fiwano account cannot
-  be reconnected (`"already connected to another account"`).
+- A Meta account owned by a different Fiwano account cannot be connected, even
+  when that channel is inactive. If it is your channel, contact
+  `contact@fiwano.com` to request an ownership release.

@@ -34,15 +34,14 @@ New accounts start with a 7-day free trial (Pro tier). For the billing lifecycle
 
 ### Rate limits
 
-Each API key is allowed **~600 requests/minute (sustained)** with short bursts
-above that. Exceeding it returns HTTP `429` with a `Retry-After` header telling
-you how many seconds to wait; successful responses carry `X-RateLimit-Limit` and
-`X-RateLimit-Remaining` so you can pace yourself. Under exceptional aggregate
-load the platform may briefly shed requests with HTTP `503` + `Retry-After` —
-treat both `429` and `503` the same way: honor `Retry-After` and retry. This is a
-generous guardrail, not a hard product cap — if you need more sustained
-throughput, [contact us](mailto:contact@fiwano.com). Meta has its own per-channel
-limits (shown in Meta Business Manager, not controlled by Fiwano).
+Message sends are limited to **10 accepted send attempts per second per channel**
+across all API keys. The limit is shared by text, media, and template sends, so
+creating another key does not increase one channel's allowance while one key can
+drive many channels independently. Exceeding it returns HTTP `429` with
+`Retry-After`. Other public API operations do not share a product-wide RPS cap.
+During exceptional outbound saturation, a send can briefly return HTTP `503` +
+`Retry-After`; honor the header and retry. Meta also enforces its own channel and
+recipient limits (shown in Meta Business Manager, not controlled by Fiwano).
 
 ### Messaging windows (24h)
 
@@ -56,6 +55,29 @@ Meta restricts when you can message a user outside an open conversation:
   message again.
 
 ### Media limits
+
+#### Outbound file size
+
+Meta downloads your `media_url` and enforces its own per-platform caps. Fiwano
+does not re-check the file, so an oversize file is rejected by Meta with
+`error_code` `100` and the message is **not** retried — see
+[Errors](errors.md#send-error-codes).
+
+| Media type | WhatsApp | Instagram |
+|---|---|---|
+| Image | 5 MB (JPEG, PNG) | 8 MB (JPEG, PNG) |
+| Video | 16 MB (MP4, 3GPP) | 25 MB (MP4, OGG, AVI, MOV, WebM) |
+| Audio | 16 MB (AAC, AMR, MP3, MP4, OGG) | 25 MB (AAC, M4A, WAV, MP4) |
+| Document | 100 MB (PDF, Office, text) | 25 MB (PDF) |
+
+Meta does not publish per-type caps for the Facebook Messenger Send API. Treat
+the Instagram figures as a safe working assumption for Messenger and handle the
+oversize rejection rather than relying on a fixed number.
+
+These are Meta's limits and Meta may change them. Note that encoding overhead
+can push a file over the cap even when its size on disk looks safe.
+
+#### Inbound file size
 
 - **Inbound media** (images, audio, video, documents) is stored temporarily for
   **60 minutes**. Download it via `GET /api/v1/media/{media_id}` promptly after
