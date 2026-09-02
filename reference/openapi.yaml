@@ -436,7 +436,11 @@ paths:
 
         the platform limit. Transient failures are queued for background retry;
 
-        permanent errors return `success: false` and are not retried.'
+        permanent errors return `success: false` and are not retried. A WhatsApp
+
+        send addressed to the channel''s own number is rejected before reaching Meta
+
+        with `400` and a `recipient_equals_sender` detail.'
       operationId: send_message_api_v1_messages_send_post
       requestBody:
         required: true
@@ -934,6 +938,15 @@ components:
           - type: 'null'
           title: Webhook Events
           description: Enabled event types, e.g. ["message.received", "message.delivered"].
+        echo_statuses:
+          type: boolean
+          title: Echo Statuses
+          description: 'message.echo status mode: true = tracked (echoed external
+            messages get a durable identity and their delivered/read/failed statuses
+            are delivered per your webhook_events), false = relay-only (echo events
+            without status tracking; the default). Has no effect until "message.echo"
+            is enabled in webhook_events.'
+          default: false
         connected_at:
           anyOf:
           - type: string
@@ -978,12 +991,13 @@ components:
         webhook_secret:
           anyOf:
           - type: string
+            maxLength: 64
           - type: 'null'
           title: Webhook Secret
-          description: Set a specific HMAC secret (also use this to rotate to a new
-            value). Omit to keep the current secret — except that setting webhook_url
-            for the first time with no secret auto-generates one, returned in the
-            response.
+          description: Set a specific HMAC secret (max 64 characters; also use this
+            to rotate to a new value). Omit to keep the current secret — except that
+            setting webhook_url for the first time with no secret auto-generates one,
+            returned in the response.
         webhook_events:
           anyOf:
           - items:
@@ -993,6 +1007,16 @@ components:
           title: Webhook Events
           description: List of event types to deliver. Available events depend on
             channel type.
+        echo_statuses:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Echo Statuses
+          description: 'message.echo status mode: true = tracked (echoed external
+            messages get a durable identity and their delivered/read/failed statuses
+            are delivered per your webhook_events), false = relay-only (echo events
+            without status tracking; the default). Has no effect until "message.echo"
+            is enabled in webhook_events.'
         subscription_id:
           anyOf:
           - type: string
@@ -1035,6 +1059,11 @@ components:
             type: array
           - type: 'null'
           title: Webhook Events
+        echo_statuses:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Echo Statuses
         subscription:
           anyOf:
           - $ref: '#/components/schemas/SubscriptionInfo'
@@ -1064,12 +1093,13 @@ components:
         webhook_secret:
           anyOf:
           - type: string
+            maxLength: 64
           - type: 'null'
           title: Webhook Secret
           description: 'HMAC secret used to sign webhook deliveries (verify it via
             the X-Webhook-Signature header). Optional: if you set webhook_url without
             supplying this, Fiwano auto-generates a secret and returns it in the response.
-            Pass your own value to use a specific secret instead.'
+            Pass your own value (max 64 characters) to use a specific secret instead.'
         webhook_events:
           anyOf:
           - items:
@@ -1079,6 +1109,16 @@ components:
           title: Webhook Events
           description: List of event types to deliver. Available events depend on
             channel type. If omitted, no events are delivered until configured.
+        echo_statuses:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Echo Statuses
+          description: 'message.echo status mode: true = tracked (echoed external
+            messages get a durable identity and their delivered/read/failed statuses
+            are delivered per your webhook_events), false = relay-only (echo events
+            without status tracking; the default). Has no effect until "message.echo"
+            is enabled in webhook_events.'
       type: object
       required:
       - code
@@ -1139,6 +1179,11 @@ components:
             type: array
           - type: 'null'
           title: Webhook Events
+        echo_statuses:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Echo Statuses
       type: object
       required:
       - channel_id
@@ -1221,6 +1266,7 @@ components:
           description: Channel ID to send from
         recipient:
           type: string
+          maxLength: 100
           title: Recipient
           description: Recipient identifier
         media_type:
@@ -1280,6 +1326,7 @@ components:
           description: Channel ID to send from
         recipient:
           type: string
+          maxLength: 100
           title: Recipient
           description: Recipient identifier (phone number for WhatsApp, IGSID for
             Instagram, PSID for Facebook)
@@ -1346,6 +1393,7 @@ components:
           description: Template language code (e.g., 'en_US')
         recipient:
           type: string
+          maxLength: 100
           title: Recipient
           description: Recipient phone number (without +, e.g., '1234567890')
         variables:

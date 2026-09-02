@@ -48,6 +48,7 @@ Each channel type supports a specific set of webhook events. **Only events you e
 | Event | Description | Channels |
 |---|---|---|
 | `message.received` | Incoming message from a user | All |
+| `message.echo` | Copy of a message your business sent **outside Fiwano** (WhatsApp Business App, Instagram inbox, Facebook Page Inbox, Meta Business Suite, another integration) | All |
 | `message.sent` | Your message was accepted by Meta | WhatsApp |
 | `message.delivered` | Message delivered to recipient's device | WhatsApp, Instagram, Facebook |
 | `message.read` | Message read by recipient * | WhatsApp, Instagram, Facebook |
@@ -288,6 +289,106 @@ Upgrade via the Billing page in the portal to receive full media content.
 | Instagram, Facebook Messenger | `share` and `ig_reel` (a shared post or reel), `story_mention`, `location`, `fallback` (a shared link), `template`, `unsupported` |
 
 Any type not listed here arrives the same way, so an unfamiliar `unsupported_type` is still just unsupported content. Message reactions are ignored and are not delivered as webhook events.
+
+#### message.echo — messages sent outside Fiwano
+
+When someone on your side answers a customer **without going through Fiwano**, Meta
+echoes that message back — and Fiwano can deliver you a copy, so your system sees
+the whole conversation, not just its own half. Sources per channel:
+
+| Channel | Where the message was sent from |
+|---|---|
+| WhatsApp | WhatsApp Business App or a linked device, on a Coexistence number |
+| Instagram | Instagram app inbox, Meta Business Suite, or another integration |
+| Facebook Messenger | Facebook Page Inbox, Meta Business Suite, or another integration |
+
+Enable it per channel by adding `message.echo` to `webhook_events` (off by default,
+available on every plan). Messages sent through Fiwano never arrive as echoes — you
+already have them.
+
+```json
+{
+  "event": "message.echo",
+  "channel_id": "b2c3d4e5f6789012",
+  "channel_type": "instagram",
+  "timestamp": "2026-09-01T10:30:00Z",
+  "data": {
+    "message_id": "550e8400-e29b-41d4-a716-446655440000",
+    "recipient": "6543217890123456",
+    "status": "sent",
+    "type": "text",
+    "text": "Operator reply"
+  }
+}
+```
+
+- `message_id` — a Fiwano UUID, exactly like the one you get when sending through
+  the API. It is **stable**: if Meta redelivers the same echo, you receive the same
+  UUID, so deduplicate on it.
+- `recipient` — the user the message was sent to, in the same format the send
+  endpoints accept (phone number for WhatsApp, IGSID for Instagram, PSID for
+  Facebook). You can reply to `recipient` directly.
+- `status: "sent"` — the initial lifecycle state. An echo confirms the message
+  exists in the conversation, not that it reached the recipient's device. No
+  separate `message.sent` event is emitted for echoes.
+- Who exactly sent the message (which operator, device, or app) is not exposed —
+  Meta does not provide a reliable identity for it.
+
+**Status tracking for echoes.** By default an echo is a one-off copy: no
+`delivered`/`read` follow-ups. Set the channel's `echo_statuses` field to `true`
+(via `PATCH /api/v1/channels/{id}` or the Portal) and echoed messages get the same
+status lifecycle as messages you send through Fiwano: subsequent
+`message.delivered` / `message.read` / `message.failed` webhooks reference the same
+echo `message_id` and are filtered by your `webhook_events` exactly like ordinary
+statuses.
+
+Delivered and read statuses for WhatsApp echoes are delivered the same way as
+for messages sent through Fiwano. Meta does not formally guarantee status delivery
+for messages sent from the WhatsApp Business App, so treat a missing status as
+normal, not as an error.
+
+Instagram has no delivery receipt; the echo itself is the equivalent of the
+synthetic `delivered` Fiwano emits for your own Instagram sends, so no separate
+`message.delivered` follows an Instagram echo.
+
+Statuses and echoes are delivered independently and at-least-once: a status can
+occasionally arrive before the echo it belongs to. Correlate by `message_id` and
+upsert rather than relying on arrival order.
+
+**Media in echoes is not delivered.** An echoed media message keeps its real
+`data.type` (`image`, `audio`, `video`, `document`, `sticker`) and a caption when
+present, but the file itself is skipped — `data.media` arrives with no download:
+
+```json
+{
+  "data": {
+    "message_id": "550e8400-e29b-41d4-a716-446655440000",
+    "recipient": "6543217890123456",
+    "status": "sent",
+    "type": "image",
+    "caption": "Invoice photo",
+    "media": {"media_id": null, "download_url": null, "unavailable": "echo_media_not_supported", "kind": "image"}
+  }
+}
+```
+
+The rule you already apply to inbound media — *check `media.download_url` before
+fetching* — covers this case with no extra code, and keeps your handler compatible
+if echo media becomes available later. Instagram/Messenger multi-attachment
+messages are split into separate `message.echo` events per attachment (each with
+its own `message_id`), and non-file attachments arrive as `type: "unsupported"`
+with `unsupported_type` — same as `message.received`.
+
+**Not delivered as echoes:** reactions, message edits, and message deletions
+(unsend). They are changes to an existing message, not new messages, and are
+silently skipped. On WhatsApp, echoes exist only for Coexistence numbers — a
+channel connected purely through the Cloud API has no source of external messages,
+so `message.echo` never fires there.
+
+> **Warning:** never mirror an echo back into the same conversation automatically.
+> Your reply would generate no echo (Fiwano sends are filtered out), but a bot on
+> the other side — or a second integration mirroring echoes too — can create a
+> loop. Always deduplicate by `message_id` before acting on an echo.
 
 #### message.delivered / message.read (all channels)
 

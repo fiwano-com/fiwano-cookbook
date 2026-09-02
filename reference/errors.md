@@ -7,8 +7,10 @@ Every error response has a `detail` field. Most domain errors use a human-readab
 ```
 
 Schema validation (`422`) uses a list of field errors. Some domain validation errors
-instead use a structured `detail` object (for example `text_too_long` when sending
-overlong text); the per-endpoint shapes are in the [API Reference](openapi.yaml).
+instead use a structured `detail` object with a `code` field — for example
+`text_too_long` when sending overlong text, or `recipient_equals_sender` (`400`) when a
+WhatsApp send is addressed to the channel's own number. The per-endpoint shapes are in
+the [API Reference](openapi.yaml).
 
 ### HTTP status codes
 

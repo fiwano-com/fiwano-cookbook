@@ -145,6 +145,12 @@ The available events depend on the channel type — WhatsApp exposes more
 payloads is on the **[Webhooks](webhooks.md#event-types)** page. An event you
 list that isn't valid for the channel type is simply ignored, not an error.
 
+One event has an extra knob: `message.echo` (copies of messages your business sends
+outside Fiwano) delivers just the message by default. Set the channel's boolean
+`echo_statuses` field — in the connect call, via `PATCH /api/v1/channels/{id}`, or in
+the Portal — to also receive delivered/read statuses for echoed messages through your
+regular status events. Details: **[message.echo](webhooks.md#message-echo)**.
+
 **Your endpoint owns the other half of this contract.** Once events are enabled, Fiwano
 POSTs each one to your `webhook_url`, and your endpoint **must respond with HTTP 2xx
 within ~5 seconds**. A non-2xx response or a timeout counts as a failed delivery: Fiwano
@@ -167,13 +173,13 @@ Portal and the API deliberately behave differently:
 
 - **Portal (Option A):** a new channel has **no secret**, and saving a webhook URL
   does not create one. Set it yourself in channel settings: click **Generate random**
-  for a random 64-character secret, or type your own and **Save** (minimum 16
+  for a random 64-character secret, or type your own and **Save** (16–64
   characters). The value is revealed **once**, immediately after.
 - **API (Option B):** when you set `webhook_url` and the channel has no secret yet,
   Fiwano **auto-generates** one (64-character hex) and returns it in the
   `exchange-code` / `PATCH /api/v1/channels/{id}` response — so channels you connect by
   API are **signed by default**. To use a specific value instead, pass your own
-  `webhook_secret` in that same call.
+  `webhook_secret` (**at most 64 characters**) in that same call.
 
 **Reading it back.** The value is only returned the moment it is set or changed — in
 the Portal's one-time reveal, or in the `exchange-code` and
