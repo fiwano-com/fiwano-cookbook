@@ -96,10 +96,18 @@ curl -X POST https://fiwano.com/api/v1/channels/setup-url \
 ```
 
 The same endpoint also reconnects channels; there is no separate reconnect API.
-If the Meta identity already belongs to one of your inactive channels, Fiwano
-reactivates that row and `exchange-code` returns the existing `channel_id`. When
-both a genuinely new asset and an inactive asset are available, the new asset
-is preferred.
+If the Meta identity already belongs to one of your channels, Fiwano updates that
+row and `exchange-code` returns the existing `channel_id`: an inactive channel is
+reactivated, an active one gets fresh credentials in place. When both a
+genuinely new asset and an inactive asset are available, the new asset is
+preferred.
+
+The request is refused with `402` when the account has no active subscription,
+and with `409` when every subscription slot for that channel type is already
+taken and none of the occupying channels can be reconnected through this flow.
+The `409` body is structured: `detail.code` is `no_free_slot` and
+`detail.occupied_by` lists the channels holding the slots — see
+[subscription slots](#subscription-slots) for how to free one.
 
 **Step 3 — User completes Meta OAuth.** After approval, the user is redirected to
 your `redirect_uri` with a one-time `code` parameter:
@@ -113,7 +121,7 @@ On failure, the redirect instead carries two query params — branch your logic 
 
 | Query param | How to use it |
 |---|---|
-| `error` | Machine-readable code. **Branch on this.** `access_denied` — the user cancelled the Meta dialog. `setup_failed` — setup could not complete (e.g. no Instagram Business account was accessible with the permissions granted). |
+| `error` | Machine-readable code. **Branch on this.** `access_denied` — the user cancelled or did not complete the Meta dialog. `slot_occupied` — the user connected a *different* Meta account than the one holding your subscription slot; `message` names the channel to reconnect or release (see [subscription slots](#subscription-slots)). `session_expired` — the setup URL expired before the flow finished; request a new one. `setup_failed` — anything else that stopped setup (e.g. no Instagram Business account was accessible with the permissions granted). |
 | `message` | URL-encoded, human-readable English explanation, safe to display to the user. **Free-form and may change — never parse or branch on its text.** |
 
 Example failure redirect:
@@ -209,8 +217,8 @@ switch your verifier to the new secret at the same moment, or signatures will mi
   16-character minimum; the field stores up to 64). Auto-generated secrets are
   64-character hex — prefer those unless you have a reason to bring your own.
 - The secret is **per channel** — each channel has its own, independent of the rest.
-- Reconnecting an inactive channel **keeps** its existing secret (see
-  [Reconnecting an inactive channel](#reconnecting-an-inactive-channel) below).
+- Reconnecting a channel **keeps** its existing secret (see
+  [Reconnecting a channel](#reconnecting-an-inactive-channel) below).
 - Treat it like a password: store it in a secret manager, never commit it, and
   verify signatures using a constant-time comparison (as in the Webhooks example).
 
@@ -244,7 +252,8 @@ active Instagram/Facebook channel uses the same Page.
 Each subscription grants **one slot per channel type** — one WhatsApp, one
 Instagram, one Facebook. A slot stays occupied while a channel is bound to it,
 **including a deactivated channel**: the binding is what lets you reconnect that
-channel later without buying another subscription.
+channel later without buying another subscription. (The portal's Billing page
+calls a subscription a *license* — it is the same thing.)
 
 `GET /api/v1/subscriptions` shows which channel sits in each slot and how many
 slots are free; each channel reports its own `subscription.id` in return.
@@ -271,20 +280,29 @@ POST   /api/v1/channels/setup-url      → user connects the new Meta account
 POST   /api/v1/channels/exchange-code  → new channel takes the free slot
 ```
 
-### Reconnecting an inactive channel
+### Reconnecting a channel
 
-A channel goes inactive when it is deactivated (`DELETE /api/v1/channels/{id}`) or
-when its Meta connection can no longer be maintained (for example, the account
-owner revoked access in Meta). To bring it back, run the **same connection flow
-again for the same Meta account** (same WhatsApp number, Instagram account, or
-Facebook Page):
+A channel goes inactive when it is deactivated (`DELETE /api/v1/channels/{id}`).
+A channel that is still active can also need reconnecting: when Meta stops
+accepting Fiwano's access to the account (the app was removed in Meta Business
+settings, a required permission was revoked, or the Page / WhatsApp account
+became unavailable), Fiwano marks it **Needs reconnect** in the portal and emails
+the account owner; sends fail with error code `190` until it is fixed. In both
+cases, run the **same connection flow again for the same Meta account** (same
+WhatsApp number, Instagram account, or Facebook Page):
 
-- The existing channel is **reactivated in place** — its `channel_id`, webhook
+- The existing channel is **updated in place** — its `channel_id`, webhook
   URL/secret/events and history are preserved. No new channel is created and your
-  stored `channel_id` mapping stays valid.
-- Reconnecting requires an **active license**: the channel must still hold one, or
-  you must have a free license slot. Otherwise the flow is refused — attach a
-  license in Billing first.
+  stored `channel_id` mapping stays valid. The flow is allowed even while the
+  channel's subscription slot is occupied by that same channel.
+- Reconnecting requires an **active subscription**: the channel must still hold
+  one, or you must have a free slot. Otherwise `setup-url` is refused (`402` or
+  `409`, see above) — bind a subscription first, in the portal's Billing page or
+  via `PATCH /api/v1/channels/{channel_id}`.
+- If the user completes the dialog for a **different** Meta account while the
+  deactivated channel still holds the slot, the flow is refused at the end with
+  `error=slot_occupied` and nothing is created. Reconnect the same account, or
+  release the slot first.
 - A Meta account owned by a different Fiwano account cannot be connected, even
   when that channel is inactive. If it is your channel, contact
   `contact@fiwano.com` to request an ownership release.

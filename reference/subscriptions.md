@@ -6,8 +6,12 @@ and how they change over a channel's lifecycle. For the field types, see the
 **[API Reference](openapi.yaml)**.
 
 A channel can **send and receive messages only while its subscription is
-`active`.** When it is not, send/receive calls are rejected until a license is
-(re)attached.
+`active`.** When it is not, send/receive calls are rejected until a subscription
+is (re)attached.
+
+**Naming:** the API calls it a *subscription*; the portal's Billing page calls the
+same thing a *license*. One license = one subscription = one slot per channel
+type. Trial, Paddle and Enterprise entitlements are all subscriptions here.
 
 ### The subscription object
 
@@ -21,7 +25,7 @@ A channel can **send and receive messages only while its subscription is
 }
 ```
 
-- **`status`** — `active`, `expired`, `canceled`, or `none` (no license bound;
+- **`status`** — `active`, `expired`, `canceled`, or `none` (no subscription bound;
   the channel cannot send/receive).
 - **`source`** — where the entitlement came from: `trial` (auto-granted on
   signup), `paddle` (paid subscription), or `enterprise` (custom subscription
@@ -56,7 +60,7 @@ A channel can **send and receive messages only while its subscription is
   Renewals are arranged with Fiwano staff before `expires_at`.
 - **No active subscription** —
   `{status: "none", source: null, tier: null, expires_at: null, auto_renew: false}`.
-  Send/receive will fail; attach a license to restore service.
+  Send/receive will fail; attach a subscription to restore service.
 
 > **Tip.** Treat `status` as the single source of truth for whether a channel can
 > operate. Do not infer it yourself from `expires_at` — during the Paddle grace

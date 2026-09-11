@@ -22,8 +22,9 @@ number. The per-endpoint shapes are in the [API Reference](openapi.yaml).
 | `201` | Created | — |
 | `400` | Bad request | Check the `detail` field |
 | `401` | Unauthorized | Check your `X-API-Key` header |
-| `402` | Payment required | Trial ended or subscription inactive — see [Subscriptions & Billing](subscriptions.md) |
+| `402` | Payment required | No active subscription on the account (trial ended or subscription lapsed) — see [Subscriptions & Billing](subscriptions.md) |
 | `404` | Not found | Resource doesn't exist or belongs to another account |
+| `409` | Conflict | Every subscription slot for this channel type is taken — `detail.code` is `no_free_slot` and `detail.occupied_by` lists the channels holding them; reconnect one, release a slot, or add a subscription — see [subscription slots](channels.md#subscription-slots) |
 | `422` | Validation error | Check required fields, types, and field constraints in `detail` |
 | `429` | Rate limit exceeded | Back off and retry after `Retry-After` — see [rate limits](capabilities.md#rate-limits) |
 | `502` | Meta API error | Upstream failure. Check `detail`. Retry may help. |
