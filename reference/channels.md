@@ -11,9 +11,9 @@ task-level guide; it does not repeat the field tables.
 ### Prerequisites
 
 Before connecting any channel — WhatsApp, Instagram or Facebook Messenger — make
-sure both conditions below are met. They apply equally to the Portal flow and the
-API flow; if either is missing, Meta stops the OAuth popup before a channel can
-be created.
+sure the conditions below are met. They apply equally to the Portal flow and the
+API flow; if the first two are missing, Meta stops the OAuth popup before a
+channel can be created.
 
 - **The asset belongs to a Meta Business Portfolio** (Business Manager). The
   "asset" is the WhatsApp number's WABA, the Facebook Page, or — for Instagram —
@@ -22,6 +22,15 @@ be created.
 - **The Facebook user signing in has full admin rights** on that Business
   Portfolio and on the asset itself. A user without admin role sees the relevant
   choice in the popup greyed out.
+- **Fiwano is the default messaging app** (Instagram and Facebook Messenger).
+  If another tool — a chatbot, CRM or inbox — is connected to the same account,
+  Meta routes each conversation to one app only. Set Fiwano as the *Default
+  routing app* (Facebook Page → Settings → Page setup → *Instagram conversation
+  routing* / *Messenger conversation routing*; for Instagram accounts without a
+  Page: Meta Business Suite → Settings → Integrations → *Conversation Routing*)
+  and turn off *Take control of conversations* for the other apps, or
+  disconnect them. Otherwise incoming messages may not reach your webhook and
+  replies are rejected with error `10`.
 
 ### Option A: Via Portal (self-service)
 

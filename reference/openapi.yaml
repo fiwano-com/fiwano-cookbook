@@ -436,11 +436,17 @@ paths:
 
         the platform limit. Transient failures are queued for background retry;
 
-        permanent errors return `success: false` and are not retried. A WhatsApp
+        permanent errors return `success: false` and are not retried. Two caller
 
-        send addressed to the channel''s own number is rejected before reaching Meta
+        mistakes are rejected before reaching Meta with `400` and a structured
 
-        with `400` and a `recipient_equals_sender` detail.'
+        detail: `invalid_recipient` (recipient empty, without digits, or not a
+
+        numeric PSID/IGSID on Instagram/Facebook; `reason` and `hint` included) and
+
+        `recipient_equals_sender` (a WhatsApp send addressed to the channel''s own
+
+        number). Surrounding whitespace in `recipient` is trimmed.'
       operationId: send_message_api_v1_messages_send_post
       requestBody:
         required: true
@@ -509,7 +515,11 @@ paths:
 
         window. Supported types are image, audio, video, and document. Transient
 
-        failures are queued; permanent payload or policy errors are not retried.'
+        failures are queued; permanent payload or policy errors are not retried.
+
+        `recipient` follows the same preflight as the text endpoint: trimmed, then
+
+        `400 invalid_recipient` / `recipient_equals_sender` before any Meta call.'
       operationId: send_media_message_api_v1_messages_send_media_post
       requestBody:
         required: true
@@ -794,7 +804,11 @@ paths:
 
         use arrays such as `{"body": ["Pablo", "ORD-123"]}`; named variables use
 
-        objects such as `{"body": {"customer_name": "Pablo"}}`.'
+        objects such as `{"body": {"customer_name": "Pablo"}}`. `recipient` follows
+
+        the same preflight as the text endpoint: trimmed, then `400 invalid_recipient`
+
+        / `recipient_equals_sender` before any Meta call.'
       operationId: send_template_message_api_v1_messages_send_template_post
       requestBody:
         required: true

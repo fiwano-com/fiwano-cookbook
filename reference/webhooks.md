@@ -54,7 +54,9 @@ Each channel type supports a specific set of webhook events. **Only events you e
 | `message.read` | Message read by recipient * | WhatsApp, Instagram, Facebook |
 | `message.failed` | Message delivery failed | WhatsApp |
 
-\* `message.read` for WhatsApp depends on recipient's privacy settings — if read receipts are disabled, the `read` status will never arrive. Treat `delivered` as a terminal success state.
+\* `message.read` depends on the recipient's privacy settings on WhatsApp and Instagram — if they have disabled read receipts, the `read` status will never arrive. Treat `delivered` as a terminal success state.
+
+New event types may be added over time; they are never enabled on an existing channel until you add them to `webhook_events`. Ignore payload fields you do not know — see [Compatibility](https://fiwano.com/documentation#compatibility).
 
 
 ### Delivery Status Tracking
@@ -67,7 +69,8 @@ UUID; Meta's provider ID remains internal to Fiwano.
 - Status progression: `sent → delivered → read`. Each status implies all previous ones.
 - `data.recipient` is the user identifier: phone number (WhatsApp), IGSID (Instagram), or PSID (Facebook).
 - All channels use the exact same webhook format.
-- **Read cascading:** when a user reads a conversation, Fiwano sends a separate `message.read` webhook for *each* unread message — not just the latest one.
+- **Read cascading:** when a user reads a conversation, Fiwano sends a separate `message.read` webhook for *each* unread message — not just the latest one. Facebook and Instagram read receipts are thread-level (Meta reports "read up to this moment", Instagram naming only the last message), so Fiwano resolves them against every message you sent to that user; WhatsApp reports each message on its own.
+- Statuses can arrive out of order — on Instagram a `read` may reach you before the `delivered` of the same message. Treat the highest status seen as the current one and upsert by `message_id`.
 
 ### Payload Format
 
@@ -349,7 +352,9 @@ normal, not as an error.
 
 Instagram has no delivery receipt; the echo itself is the equivalent of the
 synthetic `delivered` Fiwano emits for your own Instagram sends, so no separate
-`message.delivered` follows an Instagram echo.
+`message.delivered` follows an Instagram echo. An Instagram read receipt covers
+the whole thread: one `message.read` follows for every echoed message the user
+had not read yet, the same way as for messages sent through Fiwano.
 
 Statuses and echoes are delivered independently and at-least-once: a status can
 occasionally arrive before the echo it belongs to. Correlate by `message_id` and

@@ -38,6 +38,13 @@ character; empty or whitespace-only values are rejected with `422` before Meta i
 called. Leading and trailing whitespace in otherwise valid text is preserved. See
 [Capabilities](capabilities.md).
 
+`recipient` is trimmed of surrounding whitespace, then checked before Meta is called: an
+empty value, a value without any digit (for example a serialized object such as
+`[object Object]`), or a non-numeric PSID/IGSID on a Messenger/Instagram channel is
+rejected with `400 invalid_recipient` (see [Errors](errors.md)). No
+further shape rules are applied — a WhatsApp number that Meta can interpret is passed
+through as-is, and any rejection Meta makes itself still comes back as `status: "failed"`.
+
 ### Media messages
 
 `POST /api/v1/messages/send-media` — **Pro license required.** Meta fetches the file
@@ -48,6 +55,12 @@ directly from `media_url`; Fiwano never downloads or stores it. Pass `media_type
 HMAC-signed URL on your own server, with expiry ≥ 20 min so background retries can
 still fetch it. A public URL is reachable
 by anyone who learns it.
+
+**Keep files small and hosting fast.** Meta downloads the file while your request
+is waiting, so a compressed image on a fast host is accepted in a couple of
+seconds, while a large file on a slow host can take Meta a minute or more. Smaller
+files mean faster, more predictable delivery and fewer sends that finish in the
+background — see [Response time](#response-time).
 
 ```bash
 curl -X POST https://fiwano.com/api/v1/messages/send-media \
@@ -74,8 +87,10 @@ error-code table is in [Errors](errors.md#send-error-codes).
 `POST /messages/send-media` is **synchronous and can be slow**. Fiwano never
 downloads your file: we hand Meta the `media_url` and **Meta fetches it inside
 your request**. The wait is therefore proportional to the file size and to how
-fast your own hosting serves it. A 12-second call for a large file is normal;
-Fiwano gives up on Meta after **30 seconds**.
+fast your own hosting serves it. A 12-second call for a large file is normal.
+Fiwano waits for Meta for up to **30 seconds**; if Meta has not answered by then,
+the call returns `queued` and Fiwano completes the send in the background — see
+[Delivery and retries](#delivery-and-retries).
 
 Text and template sends are not affected — they carry no file and typically
 complete in well under a second.
@@ -155,17 +170,23 @@ accepts the request matters:
 - **`sent`** — Meta accepted it. Track the rest via delivery-status webhooks
   (`message.delivered` / `read` / `failed`) — see
   [Receiving Messages](webhooks.md#delivery-status-tracking).
-- **`queued`** — a transient Meta failure (network, 5xx, rate limit). Fiwano
-  retries in the background (up to 7 times over ~20 min). You get an early-warning
-  email after 3 failed retries and a final email if they're exhausted. Only
-  `send` and `send-media` can return `queued`.
+- **`queued`** — Fiwano is completing the send in the background and `message_id`
+  is already final. This happens after a transient Meta failure (network, 5xx,
+  rate limit) — retried up to 7 times over ~20 min, with an early-warning email
+  after 3 failed retries and a final email if they're exhausted — and when Meta
+  takes longer than 30 seconds to answer, which occasionally happens with large
+  media — see [slow Meta responses](errors.md#unverified-send-outcomes).
+  Track the outcome through the delivery-status webhooks; do not resend on your
+  side.
 - **`failed`** (`success: false`) — the request will not be retried. For `send`
-  and `send-media`, this means a permanent error (bad recipient, oversize text
-  or media, malformed payload), and the channel owner is emailed. `send-template`
+  and `send-media`, this means Meta rejected the message permanently (a recipient
+  the Page or number cannot message, oversize text or media, malformed payload, a
+  closed 24h window, or an action Meta denies for the account — see
+  [send error codes](errors.md#send-error-codes)),
+  and the channel owner is emailed. A request Fiwano itself refuses before calling
+  Meta (`text_too_long`, `invalid_recipient`, `recipient_equals_sender`) answers with
+  an HTTP `400` instead, not with `failed`. `send-template`
   does not retry automatically, so any Meta send error is returned as `failed`;
   the caller can decide whether and when to resend.
-  `failed` is also used for the rare case where Meta's response was lost and the
-  outcome cannot be confirmed — see
-  [unverified send outcomes](errors.md#unverified-send-outcomes).
 
 So `200` does not by itself mean "delivered" — always read `success` and `status`.
