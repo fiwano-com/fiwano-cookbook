@@ -58,3 +58,14 @@ curl -X POST https://fiwano.com/api/v1/channels/a1b2c3d4e5f67890/templates \
 
 Once a template is `APPROVED`, send it with
 [`POST /api/v1/messages/send-template`](sending-messages.md#template-messages).
+
+### Buttons
+
+`BUTTONS` can hold `URL`, phone-number and `QUICK_REPLY` buttons. When a
+recipient taps a quick-reply button, your webhook receives an ordinary
+[`message.received` of `type: "text"`](webhooks.md#button-taps)
+whose `text` is the button label, with `reply_to.message_id` equal to the
+`message_id` you got from `send-template` — so you know both which button was
+chosen and which send it answers. Standalone interactive reply-button and list
+messages (outside templates) cannot be sent yet, but taps on them are received
+the same way.

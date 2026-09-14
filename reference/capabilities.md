@@ -9,10 +9,10 @@ All three channels are connected the same way (OAuth). The table below shows wha
 | Feature | WhatsApp | Instagram | Facebook Messenger |
 |---|---|---|---|
 | Outbound text — max length | 4096 chars | 1000 chars | 2000 chars |
-| Outbound media (Pro) | image, audio, video, document | image, audio, video, document | image, audio, video, document |
+| Outbound media (Pro) | image, audio, video, document, sticker (WebP file) | image, audio, video, document | image, audio, video, document, sticker (Meta catalog `sticker_id`) |
 | Template messages (Pro) | ✅ Required outside 24h window | ❌ Not supported | ❌ Not supported |
 | Incoming webhooks — text | ✅ `type: "text"` | ✅ `type: "text"` | ✅ `type: "text"` |
-| Incoming webhooks — media (Pro) | image, audio, video, document, sticker | image, audio, video, document | image, audio, video, document |
+| Incoming webhooks — media (Pro) | image, audio, video, document (stickers as `image` + `media.sticker`) | image, audio, video, document | image, audio, video, document (stickers as `image` + `media.sticker`) |
 | Delivery statuses | `sent` `delivered` `read` `failed` | `delivered` `read` | `delivered` `read` |
 | Recipient format | Phone number without `+`  | IGSID | PSID — |
 | 24h window workaround | Use approved templates | None — wait for user to message | None — wait for user to message |
@@ -63,16 +63,18 @@ does not re-check the file, so an oversize file is rejected by Meta with
 `error_code` `100` and the message is **not** retried — see
 [Errors](errors.md#send-error-codes).
 
-| Media type | WhatsApp | Instagram |
-|---|---|---|
-| Image | 5 MB (JPEG, PNG) | 8 MB (JPEG, PNG) |
-| Video | 16 MB (MP4, 3GPP) | 25 MB (MP4, OGG, AVI, MOV, WebM) |
-| Audio | 16 MB (AAC, AMR, MP3, MP4, OGG) | 25 MB (AAC, M4A, WAV, MP4) |
-| Document | 100 MB (PDF, Office, text) | 25 MB (PDF) |
+| Media type | WhatsApp | Instagram | Facebook Messenger |
+|---|---|---|---|
+| Image | 5 MB (JPEG, PNG) | 8 MB (JPEG, PNG) | 8 MB (JPEG, PNG, GIF) |
+| Sticker | 100 KB static / 500 KB animated (WebP, 512×512 px) | not available | no file — sent by Meta catalog `sticker_id` |
+| Video | 16 MB (MP4, 3GPP) | 25 MB (MP4, OGG, AVI, MOV, WebM) | 25 MB |
+| Audio | 16 MB (AAC, AMR, MP3, MP4, OGG) | 25 MB (AAC, M4A, WAV, MP4) | 25 MB |
+| Document | 100 MB (PDF, Office, text) | 25 MB (PDF) | 25 MB |
 
-Meta does not publish per-type caps for the Facebook Messenger Send API. Treat
-the Instagram figures as a safe working assumption for Messenger and handle the
-oversize rejection rather than relying on a fixed number.
+Facebook Messenger caps video, audio, and documents at 25 MB, but **images at
+8 MB** (the stricter limit Meta applies to URL-based uploads, which is how Fiwano
+sends). Meta does not enumerate accepted formats per type; handle the oversize or
+unsupported-format rejection rather than relying on a fixed list.
 
 These are Meta's limits and Meta may change them. Note that encoding overhead
 can push a file over the cap even when its size on disk looks safe.

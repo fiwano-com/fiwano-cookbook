@@ -7,7 +7,7 @@ Fiwano has no version numbers. The API contract is `v1` (`https://fiwano.com/api
 - new endpoints;
 - new **optional** request parameters and fields;
 - new fields in responses and webhook payloads;
-- new webhook event types and new values in open sets such as delivery statuses or error hints.
+- new webhook event types and new values in open sets such as delivery statuses, error hints, and the inbound message type `data.type` (an unknown type is handled like `unsupported`).
 
 **What stays fixed:** existing endpoints, field names, types and meanings; the `X-API-Key` authentication; the webhook signature scheme. New webhook event types are **never enabled on your channels without your action** — you opt in per channel via `webhook_events`.
 

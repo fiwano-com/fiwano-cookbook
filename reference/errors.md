@@ -12,7 +12,10 @@ instead use a structured `detail` object with a `code` field — for example
 is empty, contains no digits, or is not a numeric PSID/IGSID on a Messenger/Instagram
 channel (`reason` says which; `hint` says what to send instead), or
 `recipient_equals_sender` (`400`) when a WhatsApp send is addressed to the channel's own
-number. The per-endpoint shapes are in the [API Reference](openapi.yaml).
+number, or `invalid_media_request` (`400`) when a `sticker` send uses the wrong field for
+the channel (`reason`: `media_url_required` on WhatsApp, `sticker_id_required` on
+Messenger, `sticker_unsupported` on Instagram). The per-endpoint shapes are in the
+[API Reference](openapi.yaml).
 
 ### HTTP status codes
 
@@ -56,7 +59,7 @@ human-readable description, and for media sends a hint about the likely cause.
 | `131047` | 24h re-engagement window closed | no | Send an approved WhatsApp template — see [messaging windows](capabilities.md#messaging-windows-24h) |
 | `131051` | Unsupported message type for this channel | no | Check [channel capabilities](capabilities.md#channel-capabilities) |
 | `131052` | Meta could not download `media_url` | no | Verify the URL returns `200`, `Content-Type` matches `media_type`, and the signature has not expired |
-| `131053` | Meta could not process the media | **yes** | Often transient; check format and size if it persists |
+| `131053` | Meta could not process the media | **yes**, unless Meta's `details` name a format problem | Often transient. A WebP sent as `image`, or a sticker that breaks the WebP/512×512/size rules, fails at once with a hint — see [stickers](sending-messages.md#stickers) |
 | `131056` | Pair rate limit between this sender and recipient | **yes** | Slow down messages to that recipient |
 | `131057` | WhatsApp Business Account in maintenance mode (e.g. a throughput upgrade) | **yes** | Usually temporary; no action |
 

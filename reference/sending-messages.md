@@ -49,7 +49,8 @@ through as-is, and any rejection Meta makes itself still comes back as `status: 
 
 `POST /api/v1/messages/send-media` — **Pro license required.** Meta fetches the file
 directly from `media_url`; Fiwano never downloads or stores it. Pass `media_type`
-(`image`, `audio`, `video`, `document`) and an HTTPS `media_url`.
+(`image`, `audio`, `video`, `document`, or `sticker` — see [Stickers](#stickers))
+and an HTTPS `media_url`.
 
 **Use a signed URL for non-public content** — S3/GCS/R2 presigned, Azure SAS, or an
 HMAC-signed URL on your own server, with expiry ≥ 20 min so background retries can
@@ -81,6 +82,32 @@ pair rate limits, return `queued` and use the same durable retry schedule as tex
 File-size caps are in
 [Capabilities](capabilities.md#outbound-media-size) and the full
 error-code table is in [Errors](errors.md#send-error-codes).
+
+#### Stickers
+
+`media_type: "sticker"` sends a sticker; what it takes depends on the channel,
+because Meta's platforms differ:
+
+| Channel | Field | What Meta accepts |
+|---|---|---|
+| WhatsApp | `media_url` | a WebP file, 512×512 px, up to 100 KB (static) or 500 KB (animated) |
+| Facebook Messenger | `sticker_id` | a sticker from Meta's own catalog — `369239263222822` is the thumbs up — or the `media.sticker_id` of a sticker a user sent you |
+| Instagram | — | no sticker message exists; send an `image` instead |
+
+```bash
+curl -X POST https://fiwano.com/api/v1/messages/send-media \
+  -H "X-API-Key: YOUR_API_KEY" -H "Content-Type: application/json" \
+  -d '{"channel_id": "a1b2c3d4e5f67890", "recipient": "1234567890",
+       "media_type": "sticker", "media_url": "https://my-bucket.s3.amazonaws.com/thanks.webp?X-Amz-Signature=..."}'
+```
+
+`caption` and `filename` are ignored for stickers. The wrong field for the
+channel — `sticker_id` on WhatsApp, `media_url` on Messenger, any sticker on
+Instagram — is answered with `400 invalid_media_request` before Meta is called
+(`reason` says which). A WebP that breaks WhatsApp's rules, or a WebP sent as
+`image`, fails at once with Meta code `131053` and a hint; it is not retried.
+An inbound sticker arrives as `image` with `media.sticker: true` — see
+[Receiving Messages](webhooks.md#media-messages).
 
 ### Response time
 

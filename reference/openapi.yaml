@@ -237,11 +237,24 @@ paths:
 
         There is intentionally no separate API reconnect endpoint. When Meta returns
 
-        the identity of an existing inactive channel, setup reactivates that same
+        the identity of an existing channel of yours, setup updates that same
 
-        channel row and returns its existing channel_id. A genuinely new eligible
+        channel row and returns its existing channel_id: an inactive channel is
 
-        identity is preferred when both new and inactive assets are available.'
+        reactivated, an active one gets its credentials refreshed in place (this is
+
+        how a channel that lost Meta access is repaired). A genuinely new eligible
+
+        identity is preferred when both new and inactive assets are available.
+
+
+        Refused with 402 when the account has no active subscription, and with 409
+
+        (`detail.code` = `no_free_slot`, `detail.occupied_by` = channel ids) when
+
+        every subscription slot of this type is already taken and none of the
+
+        occupying channels can be reconnected through this flow.'
       operationId: create_setup_url_api_v1_channels_setup_url_post
       requestBody:
         required: true
@@ -513,11 +526,15 @@ paths:
 
         Use a signed URL for non-public content and keep it valid for the retry
 
-        window. Supported types are image, audio, video, and document. Transient
+        window. Supported types are image, audio, video, document, and sticker
 
-        failures are queued; permanent payload or policy errors are not retried.
+        (WhatsApp: WebP `media_url`; Facebook Messenger: `sticker_id`; Instagram:
 
-        `recipient` follows the same preflight as the text endpoint: trimmed, then
+        not available — `400 invalid_media_request`). Transient failures are
+
+        queued; permanent payload or policy errors are not retried. `recipient`
+
+        follows the same preflight as the text endpoint: trimmed, then
 
         `400 invalid_recipient` / `recipient_equals_sender` before any Meta call.'
       operationId: send_media_message_api_v1_messages_send_media_post
@@ -1286,14 +1303,25 @@ components:
         media_type:
           type: string
           title: Media Type
-          description: 'Media type: image, audio, video, or document'
+          description: 'Media type: image, audio, video, document, or sticker'
         media_url:
-          type: string
-          maxLength: 2048
+          anyOf:
+          - type: string
+            maxLength: 2048
+          - type: 'null'
           title: Media Url
           description: HTTPS URL of the media file. For non-public content, use a
             signed URL (S3 presigned, GCS Signed, R2 signed, or HMAC). Max length
-            2048.
+            2048. Required for every media_type except a Facebook Messenger sticker.
+        sticker_id:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Sticker Id
+          description: Meta sticker id (digits) — Facebook Messenger only, with media_type
+            'sticker' instead of media_url. A catalog sticker or 369239263222822 (thumbs
+            up); reuse media.sticker_id from an inbound event.
         caption:
           anyOf:
           - type: string
@@ -1313,7 +1341,6 @@ components:
       - channel_id
       - recipient
       - media_type
-      - media_url
       title: SendMediaRequest
       description: 'Request to send a media message. Requires a Pro license.
 
@@ -1331,7 +1358,18 @@ components:
 
         Use image, audio, video, or document across all supported channels.
 
-        Provider-specific attachment names are handled internally.'
+        Provider-specific attachment names are handled internally.
+
+
+        `sticker` is channel-specific: WhatsApp takes a WebP `media_url`,
+
+        Facebook Messenger takes a Meta catalog `sticker_id` instead of a URL,
+
+        Instagram has no sticker message. Which field is required is decided
+
+        against the channel in the send preflight (`400 invalid_media_request`);
+
+        the schema only checks that exactly one of them is given.'
     SendMessageRequest:
       properties:
         channel_id:
