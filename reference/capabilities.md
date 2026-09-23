@@ -56,6 +56,8 @@ Meta restricts when you can message a user outside an open conversation:
 
 ### Media limits
 
+<a id="outbound-media-size"></a>
+
 #### Outbound file size
 
 Meta downloads your `media_url` and enforces its own per-platform caps. Fiwano

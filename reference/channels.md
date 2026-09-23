@@ -22,15 +22,17 @@ channel can be created.
 - **The Facebook user signing in has full admin rights** on that Business
   Portfolio and on the asset itself. A user without admin role sees the relevant
   choice in the popup greyed out.
-- **Fiwano is the default messaging app** (Instagram and Facebook Messenger).
-  If another tool — a chatbot, CRM or inbox — is connected to the same account,
-  Meta routes each conversation to one app only. Set Fiwano as the *Default
-  routing app* (Facebook Page → Settings → Page setup → *Instagram conversation
-  routing* / *Messenger conversation routing*; for Instagram accounts without a
-  Page: Meta Business Suite → Settings → Integrations → *Conversation Routing*)
-  and turn off *Take control of conversations* for the other apps, or
-  disconnect them. Otherwise incoming messages may not reach your webhook and
-  replies are rejected with error `10`.
+- **Fiwano is the app in control of conversations** (Instagram and Facebook
+  Messenger). Meta gives one app control of each conversation at a time
+  (*Conversation Routing*), so Fiwano must be the *Default routing app* to reply.
+  Set it in Facebook Page → Settings → Page setup → *Instagram conversation
+  routing* / *Messenger conversation routing* (for Instagram without a Page: Meta
+  Business Suite → Settings → Integrations → *Conversation Routing*), turn off
+  *Take control of conversations* for other apps or disconnect them, and don't
+  work these chats from the Meta Business Suite / Page inbox — answering there
+  hands control to Meta's own inbox. If Fiwano is not in control, incoming
+  messages still reach your webhook but replies are rejected with
+  [error `10`](errors.md#thread-control).
 
 ### Option A: Via Portal (self-service)
 
@@ -280,6 +282,8 @@ POST   /api/v1/channels/setup-url      → user connects the new Meta account
 POST   /api/v1/channels/exchange-code  → new channel takes the free slot
 ```
 
+<a id="reconnecting-an-inactive-channel"></a>
+
 ### Reconnecting a channel
 
 A channel goes inactive when it is deactivated (`DELETE /api/v1/channels/{id}`).
@@ -287,9 +291,12 @@ A channel that is still active can also need reconnecting: when Meta stops
 accepting Fiwano's access to the account (the app was removed in Meta Business
 settings, a required permission was revoked, or the Page / WhatsApp account
 became unavailable), Fiwano marks it **Needs reconnect** in the portal and emails
-the account owner; sends fail with error code `190` until it is fixed. In both
-cases, run the **same connection flow again for the same Meta account** (same
-WhatsApp number, Instagram account, or Facebook Page):
+the account owner; sends fail with error code `190` until it is fixed. For
+WhatsApp the same notice also appears when the number itself cannot work through
+the API (for example the *WhatsApp Business App* connection was not completed,
+or Meta has blocked the account); the notice and the email say what to do. In
+both cases, run the **same connection flow again for the same Meta account**
+(same WhatsApp number, Instagram account, or Facebook Page):
 
 - The existing channel is **updated in place** — its `channel_id`, webhook
   URL/secret/events and history are preserved. No new channel is created and your

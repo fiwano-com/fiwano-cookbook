@@ -49,6 +49,7 @@ Each channel type supports a specific set of webhook events. **Only events you e
 |---|---|---|
 | `message.received` | Incoming message from a user | All |
 | `message.echo` | Copy of a message your business sent **outside Fiwano** (WhatsApp Business App, Instagram inbox, Facebook Page Inbox, Meta Business Suite, another integration) | All |
+| `conversation.referral` | A returning user clicked an ad or an m.me / ig.me link into an existing conversation without writing; carries the same [`referral`](#referral) block as `message.received` and reopens the 24-hour window (beta) | Instagram, Facebook |
 | `message.sent` | Your message was accepted by Meta | WhatsApp |
 | `message.delivered` | Message delivered to recipient's device | WhatsApp, Instagram, Facebook |
 | `message.read` | Message read by recipient * | WhatsApp, Instagram, Facebook |
@@ -145,6 +146,8 @@ All payloads share the same top-level structure:
 ```
 
 `data.from` — PSID. Use as `recipient` when replying. `from_name` is always `null` (Meta does not include sender name in FB webhooks).
+
+<a id="media-messages"></a>
 
 #### message.received — media (Pro)
 
@@ -263,6 +266,8 @@ curl https://fiwano.com/api/v1/media/m1b2c3d4e5f67890 \
 
 The response is the raw file bytes with the original `Content-Type` (and a `Content-Disposition` filename when known). Files expire about 60 minutes after Fiwano retrieves them from Meta; `media.expires_at` is authoritative. Download promptly and re-host anything you need to keep; after expiry the URL returns `410 Gone`. Sizes are in [Capabilities](capabilities.md#media-limits); status codes in the [API Reference](openapi.yaml).
 
+<a id="button-taps"></a>
+
 #### message.received — button taps and menu choices (all channels)
 
 When a user picks one of the options you offered, the choice arrives as an ordinary `text` message whose `text` is the label they saw — a WhatsApp template quick-reply button, a WhatsApp interactive reply button or list row, an Instagram or Messenger quick reply, and Messenger / Instagram postbacks (Get Started, ice breakers, persistent menu, template buttons):
@@ -285,6 +290,8 @@ When a user picks one of the options you offered, the choice arrives as an ordin
 ```
 
 There is no separate event and no machine id for the button: one text handler covers typed answers and taps alike. Which message the button belonged to is in [`reply_to`](#reply-to) — on WhatsApp a template tap always quotes the template send, so `reply_to.message_id` is the UUID you got from `send-template`.
+
+<a id="shares"></a>
 
 #### message.received — shared posts, reels and story mentions
 
@@ -317,6 +324,8 @@ On Instagram and Facebook Messenger a user can share a post or a reel into the c
 
 Shared content is not downloaded and there is no `data.media` block: a post belongs to its author, and Meta does not allow apps to store story media. A user's own photo or video sent as a message is still an ordinary `image` / `video` event.
 
+<a id="reply-to"></a>
+
 #### Replies and quoted messages — `reply_to`
 
 When a user replies to a specific message (WhatsApp "Reply", Instagram / Messenger swipe-to-reply, a WhatsApp template button tap), the event carries `reply_to` next to `type`:
@@ -343,6 +352,70 @@ An Instagram reply to your story carries the story instead of a message id:
 `story.id` is the media id of your story, `story.url` a temporary link to its media, `story.expires_at` the end of its 24-hour lifetime, and `story.link_url` the link sticker the user tapped, when there was one (otherwise `null`).
 
 `reply_to` is present on `message.received` and on [`message.echo`](#message-echo) (an operator replying to a specific message), on all three channels and for every message type. It is absent when the message is not a reply.
+
+<a id="referral"></a>
+
+#### Referral context — ads and links (beta)
+
+When a conversation starts from a Click-to-WhatsApp, Click-to-Instagram or Click-to-Messenger ad, or from an m.me / ig.me link with a `ref` parameter, Meta attaches attribution to the first inbound event. Fiwano passes it on as `data.referral` on the `message.received` that follows the click — normally the first message of the conversation; an ice breaker or Get Started tap on Instagram / Messenger arrives as `type: "text"` and carries it the same way. For a message with several attachments it is on the first part only.
+
+> **Beta until November 2026.** This feature is new. The four normalised keys (`source`, `text`, `image_url`, `ref`) and the `conversation.referral` event may be adjusted; `raw` is guaranteed to stay exactly as it is, so anything built on `raw` is safe. If you plan to rely on the normalised keys or on `conversation.referral`, tell us at contact@fiwano.com: should anything change, we will let you know before it does. This note goes away once the shape is final.
+
+```json
+"referral": {
+  "source": "ad",
+  "text": "Chat with us\nSummer Succulents are here!",
+  "image_url": "https://scontent.xx.fbcdn.net/v/t45.1/...",
+  "ref": null,
+  "raw": {
+    "source_url": "https://fb.me/3cr4Wqqkv",
+    "source_id": "120226305854810726",
+    "source_type": "ad",
+    "headline": "Chat with us",
+    "body": "Summer Succulents are here!",
+    "media_type": "image",
+    "image_url": "https://scontent.xx.fbcdn.net/v/t45.1/...",
+    "ctwa_clid": "Aff-n8ZTODiE79d22KtAwQKj9e_mIEOOj27vDVwFjN80dp4...",
+    "welcome_message": {"text": "Hi there! Let us know how we can help!"}
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `source` | Where the user came from. `ad` — a paid ad (including Story placements); `link` — an m.me / ig.me link with `ref`; `product` — an Instagram Shop product page. The set is open: another source Meta reports is passed through in lower case, `unknown` means Meta sent none. |
+| `text` | The ad copy the user saw. WhatsApp: headline and primary text joined by a newline. Instagram / Messenger: the ad title Meta provides. `null` for links. |
+| `image_url` | The creative as an image: the picture of an image ad or the thumbnail of a video ad. `null` when Meta sends none. |
+| `ref` | Your own marker from the `ref` parameter of an m.me / ig.me link or of an Instagram / Messenger ad. Always `null` on WhatsApp. |
+| `raw` | Meta's referral object exactly as received: `source_id` / `ad_id`, `source_url`, `post_id`, `ctwa_clid`, `headline` / `body` / `ad_title`, `welcome_message`, `flow_id`, `product`. Field names differ per channel; see Meta's reference for your channel. |
+
+`text` and `image_url` are meant for your model directly: the user is replying to an ad that said this and looked like this.
+
+**A returning user — `conversation.referral` (Instagram, Messenger).** When a user who already has a conversation with you clicks an ad or an m.me / ig.me link without writing, Meta sends the attribution as a separate event with no message. The click reopens the 24-hour window, so you may reply. Enable `conversation.referral` in `webhook_events` to receive it; the payload is `data.from`, `data.from_name` and the same `referral` block. WhatsApp has no equivalent: there the attribution always arrives with a message.
+
+```json
+{
+  "event": "conversation.referral",
+  "channel_id": "a1b2c3d4e5f67890",
+  "channel_type": "instagram",
+  "timestamp": "2026-09-21T10:30:00Z",
+  "data": {
+    "from": "17841400000000777",
+    "from_name": null,
+    "referral": {"source": "link", "text": null, "image_url": null, "ref": "spring_promo", "raw": {"ref": "spring_promo", "source": "SHORTLINKS", "type": "OPEN_THREAD"}}
+  }
+}
+```
+
+What to expect from Meta:
+
+- **One-shot.** The block is attached to the event that follows the click and is not repeated on later messages. Store it on the conversation when it arrives; Fiwano keeps no message history.
+- **Creative links are temporary.** `image_url` and the URLs in `raw` are public signed Meta CDN links that need no token. Meta does not document their lifetime: fetch the image when the event arrives if you want to keep it.
+- **Attribution can be incomplete.** Meta omits `raw.ctwa_clid` for ads placed in WhatsApp Status and may omit it for clicks from a web browser, after the ad was deleted, or when the user dismissed the ad context before writing. An absent click id does not mean an organic conversation.
+- **Only ads and `ref` links carry attribution.** A message from the profile button, the link in an Instagram bio, a wa.me link or a QR code is an ordinary message without `referral`.
+- **`raw.welcome_message.text` (WhatsApp)** is the greeting configured in the ad. WhatsApp shows it in the chat before the user writes; it is not sent through the API, so there is no outbound message and no echo for it.
+
+Fiwano does not call Meta's Conversions API. To attribute a sale to a Click-to-WhatsApp ad, store `raw.ctwa_clid` and `raw.source_id` when the conversation starts and send the conversion event yourself within Meta's 7-day window (`action_source: business_messaging`, `messaging_channel: whatsapp`, `user_data.ctwa_clid` unhashed, `user_data.whatsapp_business_account_id`). On Instagram and Messenger use `raw.ad_id` for your own reporting; Meta has no click id for these channels.
 
 #### message.received — unsupported type (all channels)
 
@@ -378,6 +451,8 @@ Upgrade via the Billing page in the portal to receive full media content.
 | Facebook Messenger | `template`, `location`, `appointment_booking`, `fallback` (a shared link that came without a URL), `unsupported` |
 
 Any type not listed here arrives the same way, so an unfamiliar `unsupported_type` is still just unsupported content. Message reactions, message edits and deletions, and messages in WhatsApp groups are not delivered as webhook events. A Messenger link preview never becomes `unsupported`: the message text with the link is delivered as `text`, and a forwarded link without text arrives as `text` containing the URL.
+
+<a id="message-echo"></a>
 
 #### message.echo — messages sent outside Fiwano
 

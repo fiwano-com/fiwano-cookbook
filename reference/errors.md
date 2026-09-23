@@ -47,7 +47,7 @@ human-readable description, and for media sends a hint about the likely cause.
 | `error_code` | Meaning | Retried by Fiwano | What to do |
 |---|---|---|---|
 | `10`, `200` | Meta denies this action for the account | no | Not a token problem: the channel stays connected and keeps receiving. Read `error` (Meta's own text) and check the account in Meta Business Settings |
-| `10` with *another app is controlling this thread* | Instagram/Messenger: another connected app owns the conversation | no | Make Fiwano the default routing app or disconnect the other app — see [Prerequisites](channels.md#prerequisites) |
+| `10` with *another app is controlling this thread* | Instagram/Messenger: the conversation is controlled by something other than Fiwano (Meta *Conversation Routing*) — see the two cases in the note below | no | Set Fiwano as the app in control — see [Prerequisites](channels.md#prerequisites) |
 | `100` | Invalid parameter — Meta reuses this for several unrelated causes, including **a file above the size cap** | no | Read `error` for the specific cause; check `media_url`, `media_type`, recipient format, and [file size](capabilities.md#outbound-media-size) |
 | `190` | Access token expired or revoked | no | Reconnect the channel |
 | `368` | Account temporarily blocked for policy violations | no | Resolve in Meta Business Manager |
@@ -62,9 +62,36 @@ human-readable description, and for media sends a hint about the likely cause.
 | `131053` | Meta could not process the media | **yes**, unless Meta's `details` name a format problem | Often transient. A WebP sent as `image`, or a sticker that breaks the WebP/512×512/size rules, fails at once with a hint — see [stickers](sending-messages.md#stickers) |
 | `131056` | Pair rate limit between this sender and recipient | **yes** | Slow down messages to that recipient |
 | `131057` | WhatsApp Business Account in maintenance mode (e.g. a throughput upgrade) | **yes** | Usually temporary; no action |
+| `133010` | WhatsApp number is not registered on the WhatsApp Business Platform — the *WhatsApp Business App* connection was not completed | no | Reconnect the channel choosing *WhatsApp Business App* and complete the connection step in the app — see [Reconnecting a channel](channels.md#reconnecting-an-inactive-channel) |
 
 Codes outside this table are passed through as Meta returns them. Anything not
 recognised as permanent is treated as transient and retried.
+
+<a id="thread-control"></a>
+
+#### Error `10` — another app is controlling the thread
+
+On Instagram and Messenger, Meta lets only **one app own a conversation at a
+time** (*Conversation Routing*). When Fiwano is not that app, your reply is
+rejected with error `10`, and the incoming message still reaches your webhook so
+you keep full context. This is an account setting, not a fault — there are two
+causes:
+
+1. **Another connected app is the default routing app.** A CRM, chatbot or inbox
+   tool is set to control conversations. Set Fiwano as the *Default routing app*
+   and turn off *Take control of conversations* for that app (or disconnect it).
+2. **No other app — Meta's own inbox or AI is in control.** If someone answers
+   the conversation in **Meta Business Suite** or the **Page inbox**, or **Meta
+   AI** is enabled, Meta's inbox takes control and Fiwano is pushed aside. Nothing
+   to disconnect: stop answering these threads in the Meta inbox / turn off Meta
+   AI, and set Fiwano as the *Default routing app*.
+
+One normal-behaviour note: while a conversation is *idle* (no customer message in
+the last 24 hours on Messenger, or the Human Agent window on Instagram), only the
+default routing app may message — so making Fiwano the default is what fixes both
+cases. Where to change these settings is in [Prerequisites](channels.md#prerequisites).
+
+<a id="unverified-send-outcomes"></a>
 
 ### Slow Meta responses
 

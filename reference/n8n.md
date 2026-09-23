@@ -48,7 +48,7 @@ For self-hosted Docker: build this package into a custom n8n image — see the [
 
 ### Trigger node — events
 
-Starts your workflow for any of these events (filter by event type in node settings):
+Starts your workflow for any of these events (filter by event type in node settings). What each event carries and when it fires is the same as without n8n — see [Receiving Messages → Event Types](webhooks.md#event-types).
 
 | Event | Channels |
 |---|---|
@@ -58,7 +58,12 @@ Starts your workflow for any of these events (filter by event type in node setti
 | `message.read` | WhatsApp, Instagram, Facebook |
 | `message.sent` | WhatsApp |
 | `message.failed` | WhatsApp |
+| `conversation.referral` (beta) | Instagram, Facebook |
 
+In the node:
+
+- **Track Echo Statuses** (in **Channel → Update** and **Exchange OAuth Code**) is the API's `echo_statuses` — see [message.echo](webhooks.md#message-echo).
+- Referral context (beta) is `{{ $json.data.referral }}`; `data.referral.text` and `data.referral.image_url` can go straight into an AI Agent prompt — see [Referral context](webhooks.md#referral).
 
 ### Common workflow patterns
 
