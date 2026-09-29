@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for the report! Use this for problems with the repo itself — an example that doesn't run, or an error in the playbook or reference docs.
-        For questions use [Discussions](https://github.com/fiwano-com/fiwano-cookbook/discussions); for account/billing email contact@fiwano.com.
+        For questions use [Discussions](https://github.com/fiwano-com/fiwano-cookbook/discussions); for help with your account, billing or a live integration email support@fiwano.com; partnerships, privacy and legal go to contact@fiwano.com.
         **Never paste API keys, tokens or webhook secrets.**
   - type: input
     id: where

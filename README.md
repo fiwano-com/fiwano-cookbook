@@ -53,7 +53,8 @@ Runnable code examples (a webhook receiver with signature verification, sending,
 
 - Questions and how-to → [Discussions](https://github.com/fiwano-com/fiwano-cookbook/discussions)
 - A bug or a request → [Issues](https://github.com/fiwano-com/fiwano-cookbook/issues)
-- Account, billing or anything private → contact@fiwano.com
+- Help with your account, billing or a live integration → a ticket in your Fiwano dashboard, or email support@fiwano.com from your account address
+- Partnerships, volume pricing, privacy and legal → contact@fiwano.com
 
 ## License
 

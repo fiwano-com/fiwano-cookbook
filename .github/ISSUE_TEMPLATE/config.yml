@@ -6,6 +6,9 @@ contact_links:
   - name: 💡 Feature idea for the Fiwano platform
     url: https://github.com/fiwano-com/fiwano-cookbook/discussions/categories/ideas
     about: Suggest a product feature or vote on existing ideas.
-  - name: 🔒 Account, billing or private support
+  - name: 🔒 Help with your account, billing or a live integration
+    url: mailto:support@fiwano.com
+    about: Email support from your account address — it opens a ticket — or open one in your Fiwano dashboard. Never post secrets here.
+  - name: 🤝 Partnerships, volume pricing, privacy or legal
     url: mailto:contact@fiwano.com
-    about: Anything involving your account, credentials or billing — email us privately. Never post secrets here.
+    about: Reselling, custom agreements, privacy and legal requests.

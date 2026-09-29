@@ -57,4 +57,4 @@ have a working integration before writing a single expression. See
 - Prefer [`reference/openapi.yaml`](reference/openapi.yaml) for exact field names, types and status codes; the prose explains the flow.
 - Base URL `https://fiwano.com`; authenticate every request with the `X-API-Key` header.
 - Never put real API keys, tokens or webhook secrets into code you commit.
-</content>
+- Live service status and incident history: [status.fiwano.com](https://status.fiwano.com); for automated checks read `https://status.fiwano.com/api/v2/summary.json`.
