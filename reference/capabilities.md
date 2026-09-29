@@ -38,7 +38,18 @@ Message sends are limited to **10 accepted send attempts per second per channel*
 across all API keys. The limit is shared by text, media, and template sends, so
 creating another key does not increase one channel's allowance while one key can
 drive many channels independently. Exceeding it returns HTTP `429` with
-`Retry-After`. Other public API operations do not share a product-wide RPS cap.
+`Retry-After`.
+
+Every other public API operation (channels, subscriptions, templates, sender
+profiles, media downloads, redirects) is limited to **20 requests per second per
+API key**, measured over a rolling one-second window. This is an abuse guardrail
+for runaway loops, not a quota: a normal integration is nowhere near it, and the
+limit is per key, so one misbehaving integration does not affect the other keys of
+the same account. Exceeding it returns HTTP `429` with `Retry-After`; rejected
+requests do not extend the window, so honoring the header is enough. Fire
+event-driven reads (media downloads, sender profiles) with a retry on `429` rather
+than in one unbounded parallel burst — inbound media stays available for 60 minutes.
+
 During exceptional outbound saturation, a send can briefly return HTTP `503` +
 `Retry-After`; honor the header and retry. Meta also enforces its own channel and
 recipient limits (shown in Meta Business Manager, not controlled by Fiwano).

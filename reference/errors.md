@@ -29,7 +29,7 @@ Messenger, `sticker_unsupported` on Instagram). The per-endpoint shapes are in t
 | `404` | Not found | Resource doesn't exist or belongs to another account |
 | `409` | Conflict | Every subscription slot for this channel type is taken — `detail.code` is `no_free_slot` and `detail.occupied_by` lists the channels holding them; reconnect one, release a slot, or add a subscription — see [subscription slots](channels.md#subscription-slots) |
 | `422` | Validation error | Check required fields, types, and field constraints in `detail` |
-| `429` | Rate limit exceeded | Back off and retry after `Retry-After` — see [rate limits](capabilities.md#rate-limits) |
+| `429` | Rate limit exceeded | Back off and retry after `Retry-After`; `detail` says which limit — per channel on sends, per API key on everything else — see [rate limits](capabilities.md#rate-limits) |
 | `502` | Meta API error | Upstream failure. Check `detail`. Retry may help. |
 | `503` | Temporarily overloaded | Transient load shedding. Retry after `Retry-After`. |
 
