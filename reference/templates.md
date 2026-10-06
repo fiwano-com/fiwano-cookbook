@@ -13,6 +13,10 @@ Create → PENDING (Meta review, ~24h) → APPROVED (sendable)
                                       → REJECTED (fix & resubmit)
 ```
 
+Meta can later pause (`PAUSED`, low quality) or disable (`DISABLED`) an approved
+template. A send then fails with `error_code` `132015` / `132016`; listing
+templates with its default sync shows the current status.
+
 Templates belong to the channel's WhatsApp Business Account (WABA). Manage them
 through these endpoints — full request/response schemas are in the
 [API Reference](openapi.yaml):

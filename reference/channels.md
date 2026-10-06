@@ -2,11 +2,8 @@
 
 A **channel** is one connected Meta asset — a WhatsApp number, an Instagram
 account, or a Facebook Page — that you send and receive messages through. This
-page covers how to connect, manage and reconnect channels.
-
-For the exact request/response schema of every channel endpoint (fields, types,
-status codes), see the **[API Reference](openapi.yaml)**. This page is the
-task-level guide; it does not repeat the field tables. 
+page covers how to connect, manage and reconnect channels. Field-level schemas
+are in the **[API Reference](openapi.yaml)**.
 
 ### Prerequisites
 
@@ -29,10 +26,10 @@ channel can be created.
   routing* / *Messenger conversation routing* (for Instagram without a Page: Meta
   Business Suite → Settings → Integrations → *Conversation Routing*), turn off
   *Take control of conversations* for other apps or disconnect them, and don't
-  work these chats from the Meta Business Suite / Page inbox — answering there
-  hands control to Meta's own inbox. If Fiwano is not in control, incoming
+  work these chats from the Meta Business Suite / Page inbox or with Meta AI —
+  either hands control to Meta's own inbox. If Fiwano is not in control, incoming
   messages still reach your webhook but replies are rejected with
-  [error `10`](errors.md#thread-control).
+  [error `10`](errors.md#error-10).
 
 ### Option A: Via Portal (self-service)
 
@@ -43,11 +40,10 @@ Use this to connect **your own** channels, no code required.
 3. Complete the Meta OAuth flow in the popup window.
 4. Configure the **Webhook URL** and select **Webhook Events** in channel settings.
 5. By default, no events are enabled — select which events to forward to your endpoint.
+6. Generate a **webhook secret** so deliveries are signed — see [Webhook secret](#webhook-secret).
 
-Saving a webhook URL in the Portal does **not** create a `webhook_secret`. Set one
-explicitly so incoming deliveries are signed — see [Webhook secret](#webhook-secret).
-The URL must be an absolute HTTPS URL reachable from Fiwano. Explicit ports from
-1 to 65535 are supported; embedded credentials and URL fragments are not.
+The webhook URL must be an absolute HTTPS URL reachable from Fiwano. Explicit
+ports from 1 to 65535 are supported; embedded credentials and URL fragments are not.
 
 ### Option B: Via API (programmatic)
 
@@ -98,11 +94,9 @@ curl -X POST https://fiwano.com/api/v1/channels/setup-url \
 ```
 
 The same endpoint also reconnects channels; there is no separate reconnect API.
-If the Meta identity already belongs to one of your channels, Fiwano updates that
-row and `exchange-code` returns the existing `channel_id`: an inactive channel is
-reactivated, an active one gets fresh credentials in place. When both a
-genuinely new asset and an inactive asset are available, the new asset is
-preferred.
+If the user connects a Meta account that is already one of your channels,
+`exchange-code` returns that existing `channel_id` — see
+[Reconnecting a channel](#reconnecting-an-inactive-channel).
 
 The request is refused with `402` when the account has no active subscription,
 and with `409` when every subscription slot for that channel type is already
@@ -159,10 +153,10 @@ Webhook delivery is **opt-in per channel**: by default **no events are delivered
 choose what you receive by setting `webhook_events` — in the connect call, in the Portal,
 or later via `PATCH /api/v1/channels/{id}`. Until you do, your endpoint gets nothing.
 
-The available events depend on the channel type — WhatsApp exposes more
-(`message.sent`, `message.failed`) than Instagram and Facebook. The full list with
-payloads is on the **[Webhooks](webhooks.md#event-types)** page. An event you
-list that isn't valid for the channel type is simply ignored, not an error.
+Most events exist on every channel; `message.sent` is WhatsApp-only and
+`conversation.referral` is Instagram and Facebook only. The full list with
+payloads is on the **[Receiving Messages](webhooks.md#event-types)** page.
+An event you list that isn't valid for the channel type is ignored, not an error.
 
 One event has an extra knob: `message.echo` (copies of messages your business sends
 outside Fiwano) delivers just the message by default. Set the channel's boolean
@@ -172,19 +166,17 @@ regular status events. Details: **[message.echo](webhooks.md#message-echo)**.
 
 **Your endpoint owns the other half of this contract.** Once events are enabled, Fiwano
 POSTs each one to your `webhook_url`, and your endpoint **must respond with HTTP 2xx
-within ~5 seconds**. A non-2xx response or a timeout counts as a failed delivery: Fiwano
-**retries with backoff and emails you** — a warning after the 3rd failed attempt and an
-alert when retries are exhausted. So enable **only the events you actually handle**, and
-   return 2xx as soon as you've accepted the payload (do slower work afterwards). Successfully
-   delivered webhook payloads are not retained for relay; failures are stored encrypted for retries. Full behavior:
-**[Webhooks → Retry Policy](webhooks.md#retry-policy)**.
+within 5 seconds**; otherwise Fiwano retries and emails you — see
+**[Retry Policy](webhooks.md#retry-policy)**. So enable **only the events
+you actually handle**, and return 2xx as soon as you've accepted the payload (do
+slower work afterwards).
 
 ### Webhook secret
 
 The `webhook_secret` is the HMAC key Fiwano uses to **sign webhook deliveries**, so
 your endpoint can confirm a request genuinely came from Fiwano and was not altered in
 transit. When a channel has a secret, every delivery carries an
-`X-Webhook-Signature: sha256=<hmac>` header — see **[Webhooks](webhooks.md)**
+`X-Webhook-Signature: sha256=<hmac>` header — see **[Verifying Signatures](webhooks.md#verifying-signatures)**
 for the verification snippet. A channel with no secret receives **unsigned** deliveries.
 
 How a secret first appears differs by how you connect — and this is the one place the
@@ -222,7 +214,7 @@ switch your verifier to the new secret at the same moment, or signatures will mi
 - Reconnecting a channel **keeps** its existing secret (see
   [Reconnecting a channel](#reconnecting-an-inactive-channel) below).
 - Treat it like a password: store it in a secret manager, never commit it, and
-  verify signatures using a constant-time comparison (as in the Webhooks example).
+  verify signatures using a constant-time comparison (as in the verification snippet).
 
 ### Managing channels
 
@@ -242,20 +234,14 @@ receiving, but does not erase it — its `channel_id` and history are preserved 
 you can reconnect later. The channel also remains owned by the same Fiwano
 account: deactivation does not release its WhatsApp number, Instagram account or
 Facebook Page for connection to another Fiwano account. If the channel must move
-between accounts, contact `contact@fiwano.com`.
-
-Fiwano also unsubscribes the channel's Meta webhook
-resource only when it is safe to: a WABA subscription is kept if another active
-WhatsApp channel uses the same WABA, and a Page subscription is kept if another
-active Instagram/Facebook channel uses the same Page.
+between accounts, contact `support@fiwano.com`.
 
 ### Subscription slots
 
 Each subscription grants **one slot per channel type** — one WhatsApp, one
 Instagram, one Facebook. A slot stays occupied while a channel is bound to it,
 **including a deactivated channel**: the binding is what lets you reconnect that
-channel later without buying another subscription. (The portal's Billing page
-calls a subscription a *license* — it is the same thing.)
+channel later without buying another subscription.
 
 `GET /api/v1/subscriptions` shows which channel sits in each slot and how many
 slots are free; each channel reports its own `subscription.id` in return.
@@ -282,26 +268,48 @@ POST   /api/v1/channels/setup-url      → user connects the new Meta account
 POST   /api/v1/channels/exchange-code  → new channel takes the free slot
 ```
 
+### Channel health
+
+A channel can stay active and still be unable to work, when Meta no longer lets
+Fiwano work with the account or number: the app was removed in Meta Business
+settings, a required permission was revoked, the Page or WhatsApp account became
+unavailable, the WhatsApp number is not on the WhatsApp Business Platform (the
+*WhatsApp Business App* connection was not completed), or Meta blocked the
+account. Fiwano then marks the channel **Action required** in the portal and
+emails the account owner; the notice and the email say what to do. Until the
+cause is fixed, sends may fail — for example with [error `190`](errors.md#send-error-codes).
+
+Every channel in the API carries the same state as `health`:
+
+```json
+"health": {
+  "status": "action_required",
+  "reason": "(#190) Error validating access token: …",
+  "since": "2026-10-06T10:00:00Z"
+}
+```
+
+`status` is `ok` or `action_required` — branch on it. `reason` is human-readable
+text, usually Meta's own error with its code, which you can search in Meta's
+documentation; do not branch on it. `since` is when the problem was detected.
+`health` returns to `ok` by itself once Meta allows access again, and on
+reconnect. `is_active` stays `true`: it turns `false` only when the channel is
+deactivated. Failures of individual messages are not part of `health` — they
+come in the send response and the `message.failed` webhook, and are listed on
+the channel's **Delivery problems** page in the portal.
+
 <a id="reconnecting-an-inactive-channel"></a>
 
 ### Reconnecting a channel
 
-A channel goes inactive when it is deactivated (`DELETE /api/v1/channels/{id}`).
-A channel that is still active can also need reconnecting: when Meta stops
-accepting Fiwano's access to the account (the app was removed in Meta Business
-settings, a required permission was revoked, or the Page / WhatsApp account
-became unavailable), Fiwano marks it **Needs reconnect** in the portal and emails
-the account owner; sends fail with error code `190` until it is fixed. For
-WhatsApp the same notice also appears when the number itself cannot work through
-the API (for example the *WhatsApp Business App* connection was not completed,
-or Meta has blocked the account); the notice and the email say what to do. In
-both cases, run the **same connection flow again for the same Meta account**
-(same WhatsApp number, Instagram account, or Facebook Page):
+Reconnect a deactivated channel, or one marked *Action required*, by running the
+**same connection flow again for the same Meta account** (same WhatsApp number,
+Instagram account, or Facebook Page). When Meta has blocked the account, resolve
+it in Meta first — reconnecting alone does not clear it:
 
 - The existing channel is **updated in place** — its `channel_id`, webhook
   URL/secret/events and history are preserved. No new channel is created and your
-  stored `channel_id` mapping stays valid. The flow is allowed even while the
-  channel's subscription slot is occupied by that same channel.
+  stored `channel_id` mapping stays valid.
 - Reconnecting requires an **active subscription**: the channel must still hold
   one, or you must have a free slot. Otherwise `setup-url` is refused (`402` or
   `409`, see above) — bind a subscription first, in the portal's Billing page or
@@ -312,4 +320,4 @@ both cases, run the **same connection flow again for the same Meta account**
   release the slot first.
 - A Meta account owned by a different Fiwano account cannot be connected, even
   when that channel is inactive. If it is your channel, contact
-  `contact@fiwano.com` to request an ownership release.
+  `support@fiwano.com` to request an ownership release.

@@ -4,8 +4,6 @@ What each channel supports, the license tiers, and the platform limits.
 
 ### Channel Capabilities
 
-All three channels are connected the same way (OAuth). The table below shows what each channel supports.
-
 | Feature | WhatsApp | Instagram | Facebook Messenger |
 |---|---|---|---|
 | Outbound text — max length | 4096 chars | 1000 chars | 2000 chars |
@@ -13,13 +11,13 @@ All three channels are connected the same way (OAuth). The table below shows wha
 | Template messages (Pro) | ✅ Required outside 24h window | ❌ Not supported | ❌ Not supported |
 | Incoming webhooks — text | ✅ `type: "text"` | ✅ `type: "text"` | ✅ `type: "text"` |
 | Incoming webhooks — media (Pro) | image, audio, video, document (stickers as `image` + `media.sticker`) | image, audio, video, document | image, audio, video, document (stickers as `image` + `media.sticker`) |
-| Delivery statuses | `sent` `delivered` `read` `failed` | `delivered` `read` | `delivered` `read` |
-| Recipient format | Phone number without `+`  | IGSID | PSID — |
+| Delivery statuses | `sent` `delivered` `read` `failed` | `delivered` `read` `failed` | `delivered` `read` `failed` |
+| Recipient format | Phone number without `+`  | IGSID | PSID |
 | 24h window workaround | Use approved templates | None — wait for user to message | None — wait for user to message |
 | Channel identifier | `phone_number_id` | `ig_account_id` | `page_id` |
 | Sender profile | `data.from_name` (from Meta contacts) | Via [profile endpoint](webhooks.md#sender-profile) | Via [profile endpoint](webhooks.md#sender-profile) |
 
-> **Note:** Each Meta account (phone number, Instagram account, or Facebook Page) can only be connected to one Fiwano user at a time.
+> **Note:** Each Meta account (phone number, Instagram account, or Facebook Page) can only be connected to one Fiwano account at a time.
 
 ### License Tiers
 
@@ -42,11 +40,9 @@ drive many channels independently. Exceeding it returns HTTP `429` with
 
 Every other public API operation (channels, subscriptions, templates, sender
 profiles, media downloads, redirects) is limited to **20 requests per second per
-API key**, measured over a rolling one-second window. This is an abuse guardrail
-for runaway loops, not a quota: a normal integration is nowhere near it, and the
-limit is per key, so one misbehaving integration does not affect the other keys of
-the same account. Exceeding it returns HTTP `429` with `Retry-After`; rejected
-requests do not extend the window, so honoring the header is enough. Fire
+API key**. This is a guardrail against runaway loops, not a quota: a normal
+integration is nowhere near it, and one misbehaving key does not affect the other
+keys of the same account. Exceeding it returns HTTP `429` with `Retry-After`. Fire
 event-driven reads (media downloads, sender profiles) with a retry on `429` rather
 than in one unbounded parallel burst — inbound media stays available for 60 minutes.
 
@@ -58,12 +54,17 @@ recipient limits (shown in Meta Business Manager, not controlled by Fiwano).
 
 Meta restricts when you can message a user outside an open conversation:
 
+- **Instagram & Facebook Messenger** — you can reply only within **24 hours** of
+  the user's last message. These replies are **free** — Meta does not charge for
+  them. There is no template workaround — wait for the user to message again.
 - **WhatsApp** — you can send regular text only within **24 hours** of the
   customer's last message. Outside the window, use an approved template via
-  `POST /api/v1/messages/send-template`. This is a Meta policy.
-- **Instagram & Facebook Messenger** — you can reply only within **24 hours** of
-  the user's last message. There is no template workaround — wait for the user to
-  message again.
+  `POST /api/v1/messages/send-template`. This is a Meta policy. Replies inside
+  the window are **free for the first 1,000 a month per number**; Meta bills the
+  replies after that, and every template. Without a payment method on the
+  WhatsApp Business account, the free 1,000 still go out, and later replies are
+  not delivered (error `131042`) — see
+  [Messaging Costs](https://fiwano.com/documentation/messaging-costs).
 
 ### Media limits
 
@@ -84,20 +85,16 @@ does not re-check the file, so an oversize file is rejected by Meta with
 | Audio | 16 MB (AAC, AMR, MP3, MP4, OGG) | 25 MB (AAC, M4A, WAV, MP4) | 25 MB |
 | Document | 100 MB (PDF, Office, text) | 25 MB (PDF) | 25 MB |
 
-Facebook Messenger caps video, audio, and documents at 25 MB, but **images at
-8 MB** (the stricter limit Meta applies to URL-based uploads, which is how Fiwano
-sends). Meta does not enumerate accepted formats per type; handle the oversize or
+These are Meta's limits and Meta may change them; encoding overhead can push a
+file over the cap even when its size on disk looks safe. Meta does not list
+accepted formats per type exhaustively, so handle the oversize or
 unsupported-format rejection rather than relying on a fixed list.
 
-These are Meta's limits and Meta may change them. Note that encoding overhead
-can push a file over the cap even when its size on disk looks safe.
+#### Inbound media
 
-#### Inbound file size
-
-- **Inbound media** (images, audio, video, documents) is stored temporarily for
-  **60 minutes**. Download it via `GET /api/v1/media/{media_id}` promptly after
-  the webhook; files are cleaned up automatically after expiry. Maximum file
-  size: **10 MB**.
+- **Inbound media** (images, audio, video, documents) is stored for **60
+  minutes**. Download it via `GET /api/v1/media/{media_id}` promptly after the
+  webhook. Maximum file size: **10 MB**.
 - **Pro license required** for sending/receiving media and using WhatsApp
   templates. With a Starter license, inbound media arrives as
   `type: "unsupported"` with `upgrade_required: "pro"`. See

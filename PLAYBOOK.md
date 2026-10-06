@@ -25,16 +25,16 @@ What each file covers, so you (or the agent) can jump straight to the right one:
 | File | What's inside |
 |------|---------------|
 | [`reference/quickstart.md`](reference/quickstart.md) | The step-by-step integration plan — **start here** |
-| [`reference/channels.md`](reference/channels.md) | Connect, manage and reconnect WhatsApp, Instagram and Messenger channels (portal and embedded OAuth), and the per-channel webhook event list |
+| [`reference/channels.md`](reference/channels.md) | Connect, manage and reconnect WhatsApp, Instagram and Messenger channels (portal and embedded OAuth), the per-channel webhook event list, and channel health |
 | [`reference/webhooks.md`](reference/webhooks.md) | Receiving messages and statuses, signature verification, retry policy, downloading media, sender profiles |
 | [`reference/sending-messages.md`](reference/sending-messages.md) | Sending text, media and WhatsApp template messages |
 | [`reference/templates.md`](reference/templates.md) | Creating, managing and reviewing WhatsApp message templates |
 | [`reference/capabilities.md`](reference/capabilities.md) | Channel capabilities, license tiers, rate limits, messaging windows and media limits |
 | [`reference/subscriptions.md`](reference/subscriptions.md) | A channel's subscription state and the billing lifecycle |
-| [`reference/errors.md`](reference/errors.md) | Error format and HTTP status codes |
+| [`reference/errors.md`](reference/errors.md) | HTTP errors and structured `detail` codes, Meta send error codes with what Fiwano retries, and the causes of error `10` |
 | [`reference/compatibility.md`](reference/compatibility.md) | How the `v1` contract evolves: additive changes only, what stays fixed, what your integration must tolerate |
 | [`reference/n8n.md`](reference/n8n.md) | The verified n8n community node — same channels, events and operations, no code |
-| [`reference/guides.md`](reference/guides.md) | Background reading (pricing, the 24-hour window, ways to connect) — links to the full articles |
+| [`reference/guides.md`](reference/guides.md) | Background reading (pricing, the 24-hour window, ways to connect, AI app builders) — links to the full articles |
 | [`reference/openapi.yaml`](reference/openapi.yaml) | The exact machine-readable contract for every endpoint |
 
 ## Prefer no-code? Use the n8n nodes

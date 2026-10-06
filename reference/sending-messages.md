@@ -33,22 +33,17 @@ The response carries a `message_id` (a Fiwano UUID) that every later delivery-st
 webhook references. Text has a per-platform length cap (WhatsApp 4096, Facebook
 2000, Instagram 1000) — oversize text is rejected with `400 text_too_long` before
 Meta is called. Fiwano does **not** auto-split; split on your side to preserve your
-own chunking and ordering. The `text` value must contain at least one non-whitespace
-character; empty or whitespace-only values are rejected with `422` before Meta is
-called. Leading and trailing whitespace in otherwise valid text is preserved. See
-[Capabilities](capabilities.md).
+own chunking and ordering. Empty or whitespace-only `text` is rejected with `422`.
 
-`recipient` is trimmed of surrounding whitespace, then checked before Meta is called: an
-empty value, a value without any digit (for example a serialized object such as
-`[object Object]`), or a non-numeric PSID/IGSID on a Messenger/Instagram channel is
-rejected with `400 invalid_recipient` (see [Errors](errors.md)). No
-further shape rules are applied — a WhatsApp number that Meta can interpret is passed
-through as-is, and any rejection Meta makes itself still comes back as `status: "failed"`.
+An obviously invalid `recipient` (empty, no digits, or a non-numeric PSID/IGSID) is
+rejected with `400 invalid_recipient` before Meta is called; any other WhatsApp number
+is passed to Meta as is, and Meta's own rejection comes back as `status: "failed"`.
+See [HTTP errors](errors.md#http-errors).
 
 ### Media messages
 
 `POST /api/v1/messages/send-media` — **Pro license required.** Meta fetches the file
-directly from `media_url`; Fiwano never downloads or stores it. Pass `media_type`
+directly from `media_url`. Pass `media_type`
 (`image`, `audio`, `video`, `document`, or `sticker` — see [Stickers](#stickers))
 and an HTTPS `media_url`.
 
@@ -76,10 +71,8 @@ curl -X POST https://fiwano.com/api/v1/messages/send-media \
 ```
 
 Always check `success` and `status`. Permanent failures include a Meta
-`error_code` — for example `131052` when Meta cannot download the URL. Failures
-that can recover, including `131053` processing/fetcher failures and `131056`
-pair rate limits, return `queued` and use the same durable retry schedule as text.
-File-size caps are in
+`error_code` — for example `131052` when Meta cannot download the URL; temporary
+ones, such as `131053`, return `queued` and are retried like text. File-size caps are in
 [Capabilities](capabilities.md#outbound-media-size) and the full
 error-code table is in [Errors](errors.md#send-error-codes).
 
@@ -190,30 +183,54 @@ Template sends return the same response shape as text and media sends. The
 
 ### Delivery and retries
 
-All three send endpoints return `200` with the common `success`, `message_id`,
-`error`, `error_code`, and `status` fields, because what happens after Meta
-accepts the request matters:
+All three send endpoints answer `200` with `success`, `message_id`, `status`,
+`error` and `error_code`. A `200` alone does not mean the message went out —
+read `status`:
 
-- **`sent`** — Meta accepted it. Track the rest via delivery-status webhooks
-  (`message.delivered` / `read` / `failed`) — see
-  [Receiving Messages](webhooks.md#delivery-status-tracking).
-- **`queued`** — Fiwano is completing the send in the background and `message_id`
-  is already final. This happens after a transient Meta failure (network, 5xx,
-  rate limit) — retried up to 7 times over ~20 min, with an early-warning email
-  after 3 failed retries and a final email if they're exhausted — and when Meta
-  takes longer than 30 seconds to answer, which occasionally happens with large
-  media — see [slow Meta responses](errors.md#unverified-send-outcomes).
-  Track the outcome through the delivery-status webhooks; do not resend on your
-  side.
-- **`failed`** (`success: false`) — the request will not be retried. For `send`
-  and `send-media`, this means Meta rejected the message permanently (a recipient
-  the Page or number cannot message, oversize text or media, malformed payload, a
-  closed 24h window, or an action Meta denies for the account — see
-  [send error codes](errors.md#send-error-codes)),
-  and the channel owner is emailed. A request Fiwano itself refuses before calling
-  Meta (`text_too_long`, `invalid_recipient`, `recipient_equals_sender`) answers with
-  an HTTP `400` instead, not with `failed`. `send-template`
-  does not retry automatically, so any Meta send error is returned as `failed`;
-  the caller can decide whether and when to resend.
+| `status` | `success` | Meaning | What to do |
+|---|---|---|---|
+| `sent` | `true` | Meta accepted the message | Follow it with [delivery-status webhooks](webhooks.md#delivery-status-tracking) |
+| `queued` | `true` | Fiwano is finishing the send in the background; `message_id` is final | Do not resend. The outcome arrives as webhooks: the usual statuses, or [`message.failed`](webhooks.md#event-types) |
+| `failed` | `false` | Not sent, and not retried | Read `error` and `error_code` — see [send error codes](errors.md#send-error-codes) |
 
-So `200` does not by itself mean "delivered" — always read `success` and `status`.
+A request Fiwano refuses before calling Meta — `text_too_long`,
+`invalid_recipient`, an inactive channel, a rate limit — gets an
+[HTTP error](errors.md#http-errors) instead of `failed`. On `send`
+and `send-media`, a `failed` message is also reported to the channel owner by
+email.
+
+In the portal, each channel's **Delivery problems** page (Messages tab) lists
+the last 7 days of messages that are `queued` for a retry (with the attempt
+number and the next try) or `failed`, with Meta's code and text — the same
+`error` the API and `message.failed` return. This includes WhatsApp messages
+that Meta accepted and later reported as failed.
+
+A send is `queued` for one of two reasons:
+
+- **Meta failed temporarily** (text and media) — a network error, a Meta `5xx`,
+  a rate limit, or a temporary error code. Fiwano retries up to 7 times over
+  ~20 minutes. The channel owner is emailed after 3 failed retries, and again if
+  all of them fail; you then receive `message.failed`. `send-template` does not
+  retry: any error Meta returns is `failed`, and you decide whether and when to
+  resend.
+- **Meta answered slowly** (any send) — see below.
+
+<a id="unverified-send-outcomes"></a>
+
+#### Slow Meta responses
+
+Meta occasionally takes more than 30 seconds — sometimes over a minute — to
+answer a send, most often while it downloads a large file. The call then returns
+`queued` and Fiwano waits for Meta to confirm the message:
+
+- Usually the confirmation comes and the normal `message.sent` /
+  `message.delivered` / `message.read` webhooks follow.
+- If Meta confirms nothing within a few minutes, Fiwano sends a text or media
+  message once more (never a template). The first attempt may have gone through
+  after all, so in rare cases the recipient gets the message twice — a duplicate
+  is preferred to a lost message.
+- If nothing is confirmed in the end, the message becomes `failed`: you receive
+  `message.failed` and the channel owner is emailed.
+
+Do not resend on your side while a message is `queued`. If your own HTTP client
+times out before the answer, see [Response time](#response-time).

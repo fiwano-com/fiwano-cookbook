@@ -52,7 +52,8 @@ OpenAPI operations for this step:
 
 **Success:** you have a `channel_id` (the embedded flow returns it straight from
 `exchange-code`), and `GET /api/v1/channels` now lists the channel with
-`"is_active": true` — it can send and receive. That `channel_id` is what you pass
+`"is_active": true` and `"health": {"status": "ok", …}` — it can send and
+receive. That `channel_id` is what you pass
 to every send and receive call from here on.
 
 ### 3. Receive a message
@@ -69,7 +70,8 @@ per-channel event list and how to configure it are in
 **2. Handle the webhook.** Fiwano POSTs each enabled event to your `webhook_url`.
 Your endpoint **must verify the `X-Webhook-Signature`** (HMAC-SHA256 with the
 channel's `webhook_secret`) and **respond HTTP 2xx within ~5 seconds** —
-otherwise Fiwano retries with backoff and emails you. Payload shapes and the
+otherwise Fiwano retries with backoff and emails you. Acknowledge first, then do
+slow work such as generating an AI reply. Payload shapes and the
 signature check are in [Receiving Messages](webhooks.md).
 
 An inbound `message.received` carries the two identifiers you need to reply
@@ -121,7 +123,9 @@ curl -X POST https://fiwano.com/api/v1/messages/send \
 
 - Send: `POST /api/v1/messages/send` (text), `POST /api/v1/messages/send-media` (media)
 
-**Success:** the call returns an accepted message with a `message_id`; if you
+**Success:** the call returns `success: true` with a `message_id` — check it: a
+`200` can still say `"status": "failed"` (see
+[Delivery and retries](sending-messages.md#delivery-and-retries)). If you
 enabled delivery events in step 3, you'll then receive `message.sent` /
 `message.delivered` webhooks tracking it. Read
 [Sending Messages](sending-messages.md) for media and more.

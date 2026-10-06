@@ -6,7 +6,9 @@ info:
 
 
     Authenticate every request with the `X-API-Key` header (keys start with `mip_live_`,
-    created on the API Keys page in the portal). Base URL: `https://fiwano.com`.
+    created on the API Keys page in the portal); `Authorization: Bearer <key>` is
+    accepted when `X-API-Key` is absent. Keys are secret: call the API from your server,
+    not from browser code. Base URL: `https://fiwano.com`.
 
 
     Human-readable guides: https://fiwano.com/documentation'
@@ -40,12 +42,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionsResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels:
     get:
       tags:
@@ -69,12 +68,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChannelListResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels/{channel_id}:
     get:
       tags:
@@ -89,6 +85,9 @@ paths:
 
         to the authenticated account.'
       operationId: get_channel_api_v1_channels__channel_id__get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -141,6 +140,9 @@ paths:
 
         are not updated either.'
       operationId: update_channel_api_v1_channels__channel_id__patch
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -190,6 +192,9 @@ paths:
 
         channel uses the same Page.'
       operationId: delete_channel_api_v1_channels__channel_id__delete
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -257,11 +262,11 @@ paths:
         occupying channels can be reconnected through this flow.'
       operationId: create_setup_url_api_v1_channels_setup_url_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SetupUrlRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -275,6 +280,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels/exchange-code:
     post:
       tags:
@@ -292,11 +300,11 @@ paths:
         The code is one-time use and expires after 5 minutes.'
       operationId: exchange_code_api_v1_channels_exchange_code_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExchangeCodeRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -310,6 +318,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels/{channel_id}/profile/{user_id}:
     get:
       tags:
@@ -328,6 +339,9 @@ paths:
         \    HTTPException 400: Channel inactive or missing token\n    HTTPException\
         \ 502: Meta API error"
       operationId: get_sender_profile_api_v1_channels__channel_id__profile__user_id__get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -373,12 +387,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectListResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
     post:
       tags:
       - api
@@ -391,11 +402,11 @@ paths:
         constrained wildcard patterns like https://*.example.com/* remain supported.'
       operationId: add_redirect_api_v1_redirects_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/RedirectCreateRequest'
+        required: true
       responses:
         '201':
           description: Successful Response
@@ -409,6 +420,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/redirects/{redirect_id}:
     delete:
       tags:
@@ -416,6 +430,9 @@ paths:
       summary: Remove Redirect
       description: Remove an allowed redirect URI.
       operationId: remove_redirect_api_v1_redirects__redirect_id__delete
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: redirect_id
         in: path
@@ -462,11 +479,11 @@ paths:
         number). Surrounding whitespace in `recipient` is trimmed.'
       operationId: send_message_api_v1_messages_send_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SendMessageRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -480,6 +497,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/media/{media_id}:
     get:
       tags:
@@ -495,6 +515,9 @@ paths:
 
         Response: raw file bytes with appropriate Content-Type header.'
       operationId: download_media_api_v1_media__media_id__get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: media_id
         in: path
@@ -539,11 +562,11 @@ paths:
         `400 invalid_recipient` / `recipient_equals_sender` before any Meta call.'
       operationId: send_media_message_api_v1_messages_send_media_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SendMediaRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -557,6 +580,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels/{channel_id}/templates:
     get:
       tags:
@@ -574,6 +600,9 @@ paths:
 
         Only WhatsApp channels support templates.'
       operationId: list_templates_api_v1_channels__channel_id__templates_get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -639,6 +668,9 @@ paths:
 
         Rate limit: 100 templates created per WABA per hour.'
       operationId: create_template_api_v1_channels__channel_id__templates_post
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -677,6 +709,9 @@ paths:
 
         with example values for each variable.'
       operationId: get_template_api_v1_channels__channel_id__templates__template_id__get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -725,6 +760,9 @@ paths:
 
         After editing an approved template, it goes back to PENDING for re-review.'
       operationId: update_template_api_v1_channels__channel_id__templates__template_id__put
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -773,6 +811,9 @@ paths:
 
         with the same name for 30 days.'
       operationId: delete_template_api_v1_channels__channel_id__templates__template_id__delete
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
       - name: channel_id
         in: path
@@ -828,11 +869,11 @@ paths:
         / `recipient_equals_sender` before any Meta call.'
       operationId: send_template_message_api_v1_messages_send_template_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SendTemplateRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -846,6 +887,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
 components:
   schemas:
     AvailableSlotsByTier:
@@ -869,6 +913,46 @@ components:
       - pro
       title: AvailableSlotsByTier
       description: Free active subscription slots for one channel type.
+    ChannelHealth:
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - action_required
+          title: Status
+          description: '''ok'', or ''action_required'' when Meta no longer lets Fiwano
+            work with this account or number (access or a permission revoked, number
+            removed or not connected to the WhatsApp Business Platform, account blocked
+            by Meta). The channel is not deactivated, but messages may fail until
+            the owner fixes the cause — in Meta, or by running the connect flow again
+            for the same account. Clears automatically once Meta''s checks pass, and
+            on reconnect.'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: 'Human-readable text, usually Meta''s own error as ''(#<code>)
+            <text>''. Not a code: branch on `status`. Null when status is ''ok''.'
+        since:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Since
+          description: ISO-8601 UTC timestamp when the problem was detected. Null
+            when status is 'ok'.
+      type: object
+      required:
+      - status
+      title: ChannelHealth
+      description: 'Meta-side state of a channel: whether Meta still lets Fiwano work
+        with the
+
+        account and number. Failures of individual messages are not reflected here
+        —
+
+        they come in the send response and the `message.failed` webhook.'
     ChannelListResponse:
       properties:
         channels:
@@ -906,7 +990,12 @@ components:
         is_active:
           type: boolean
           title: Is Active
-          description: True if the channel can currently send and receive messages.
+          description: False only after the channel was deactivated (DELETE, or its
+            subscription ended). An active channel can still have a Meta-side problem
+            — see `health`.
+        health:
+          $ref: '#/components/schemas/ChannelHealth'
+          description: Meta-side state of the channel.
         phone_number_id:
           anyOf:
           - type: string
@@ -999,6 +1088,7 @@ components:
       - id
       - channel_type
       - is_active
+      - health
       - subscription
       title: ChannelOut
       description: 'A connected channel — one WhatsApp number, Instagram account,
@@ -1409,21 +1499,25 @@ components:
           - type: string
           - type: 'null'
           title: Error
+          description: 'Readable reason for a failed send: Meta''s text, plus a Fiwano
+            hint where Meta''s text does not explain the problem.'
         error_code:
           anyOf:
           - type: integer
           - type: 'null'
           title: Error Code
-          description: Meta error code (when failure originates at Meta). See documentation
-            for common send error codes.
+          description: Meta's error code, unchanged, when Meta rejected the send (https://fiwano.com/documentation/errors#send-error-codes).
+            Null for 'sent'/'queued' and for a failure without a Meta error (network,
+            Meta 5xx without a body).
         status:
           anyOf:
           - type: string
           - type: 'null'
           title: Status
-          description: 'Delivery state: ''sent'' (accepted by Meta), ''queued'' (transient
-            text/media failure — retried in the background), or ''failed'' (terminal
-            for this request; see error/error_code). Template sends are never queued.'
+          description: 'Delivery state: ''sent'' (accepted by Meta), ''queued'' (Fiwano
+            is completing the send in the background after a temporary Meta failure
+            on text/media or a slow Meta response on any send; the outcome follows
+            as webhooks), or ''failed'' (not sent and not retried; see error/error_code).'
       type: object
       required:
       - success
@@ -2011,9 +2105,12 @@ components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
-      in: header
-      name: X-API-Key
       description: API key in the format mip_live_xxx. Create one on the API Keys
         page in the portal.
-security:
-- ApiKeyAuth: []
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      description: 'The same API key sent as `Authorization: Bearer mip_live_xxx`.
+        Used only when `X-API-Key` is absent.'
+      scheme: bearer

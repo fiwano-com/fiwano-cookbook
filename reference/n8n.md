@@ -57,7 +57,7 @@ Starts your workflow for any of these events (filter by event type in node setti
 | `message.delivered` | WhatsApp, Instagram, Facebook |
 | `message.read` | WhatsApp, Instagram, Facebook |
 | `message.sent` | WhatsApp |
-| `message.failed` | WhatsApp |
+| `message.failed` | WhatsApp, Instagram, Facebook |
 | `conversation.referral` (beta) | Instagram, Facebook |
 
 In the node:
@@ -99,7 +99,7 @@ The trigger can wire its own webhook onto your channels, so you don't have to ca
 | **Specific Channel** | Points one **Channel ID** at this trigger — **takes it over** even if it already has a webhook. | Clears that channel's webhook (only if it still points here). |
 | **Manual** *(default)* | Nothing — you set `webhook_url` yourself via **Exchange OAuth Code** / **Update**. No credential needed. | Nothing. |
 
-The trigger's selected **Event Types** are registered as the channel's `webhook_events` (events that don't apply to a channel type are ignored — e.g. `message.sent`/`message.failed` on Instagram). Channels start with no events enabled, so auto-setup turns them on for you.
+The trigger's selected **Event Types** are registered as the channel's `webhook_events` (events that don't apply to a channel type are ignored — e.g. `message.sent` on Instagram). Channels start with no events enabled, so auto-setup turns them on for you.
 
 **Webhook secret.** Set a **Webhook Secret** to verify incoming signatures (HMAC-SHA256; mismatches are rejected with HTTP 401) and, in auto-setup, to register on your channels. You can set it in two places: the trigger's own **Webhook Secret** field, or — to reuse one secret everywhere — the **Webhook Secret** field on the Fiwano API credential. The trigger's field wins; if it's empty, the credential's secret is used. That same credential secret also backs the **Exchange OAuth Code** and **Update** operations when you leave their secret empty. Leave both empty to skip verification (not recommended in production).
 

@@ -1,115 +1,103 @@
 # Errors
 
-Every error response has a `detail` field. Most domain errors use a human-readable string:
+Fiwano reports a problem in one of two ways:
+
+- **The request is refused** with an HTTP `4xx`/`5xx` status — see
+  [HTTP errors](#http-errors). A `4xx` from a send endpoint means no message was
+  sent.
+- **The message fails.** The send endpoints answer `200` with `success: false`
+  and `status: "failed"`, or a send that answered `queued` later ends in a
+  [`message.failed`](webhooks.md#event-types) webhook. When Meta
+  caused it, the reason is in the [send error code](#send-error-codes).
+
+### HTTP errors
+
+The body has a `detail` field, usually a readable string:
 
 ```json
-{ "detail": "Human-readable error description" }
+{ "detail": "Channel is inactive" }
 ```
 
-Schema validation (`422`) uses a list of field errors. Some domain validation errors
-instead use a structured `detail` object with a `code` field — for example
-`text_too_long` when sending overlong text, `invalid_recipient` (`400`) when `recipient`
-is empty, contains no digits, or is not a numeric PSID/IGSID on a Messenger/Instagram
-channel (`reason` says which; `hint` says what to send instead), or
-`recipient_equals_sender` (`400`) when a WhatsApp send is addressed to the channel's own
-number, or `invalid_media_request` (`400`) when a `sticker` send uses the wrong field for
-the channel (`reason`: `media_url_required` on WhatsApp, `sticker_id_required` on
-Messenger, `sticker_unsupported` on Instagram). The per-endpoint shapes are in the
-[API Reference](openapi.yaml).
+A validation error (`422`) lists the failing fields in `detail`. Rejections you
+may want to handle in code carry a structured `detail` with a stable `code`, a
+`message`, and usually a `hint`:
 
-### HTTP status codes
-
-| Code | Meaning | What to do |
+| `detail.code` | Status | When |
 |---|---|---|
-| `200` | Success | — |
-| `201` | Created | — |
-| `400` | Bad request | Check the `detail` field |
-| `401` | Unauthorized | Check your `X-API-Key` header |
-| `402` | Payment required | No active subscription on the account (trial ended or subscription lapsed) — see [Subscriptions & Billing](subscriptions.md) |
-| `404` | Not found | Resource doesn't exist or belongs to another account |
-| `409` | Conflict | Every subscription slot for this channel type is taken — `detail.code` is `no_free_slot` and `detail.occupied_by` lists the channels holding them; reconnect one, release a slot, or add a subscription — see [subscription slots](channels.md#subscription-slots) |
-| `422` | Validation error | Check required fields, types, and field constraints in `detail` |
-| `429` | Rate limit exceeded | Back off and retry after `Retry-After`; `detail` says which limit — per channel on sends, per API key on everything else — see [rate limits](capabilities.md#rate-limits) |
-| `502` | Meta API error | Upstream failure. Check `detail`. Retry may help. |
-| `503` | Temporarily overloaded | Transient load shedding. Retry after `Retry-After`. |
+| `text_too_long` | `400` | Text is over the channel's limit; `max_length` and `actual_length` are included |
+| `invalid_recipient` | `400` | `recipient` is empty, has no digits, or is not a numeric PSID/IGSID on Messenger/Instagram; `reason` is `empty`, `no_digits` or `not_numeric` |
+| `recipient_equals_sender` | `400` | A WhatsApp send is addressed to the channel's own number |
+| `invalid_media_request` | `400` | A sticker uses the wrong field for the channel; `reason` is `media_url_required` (WhatsApp), `sticker_id_required` (Messenger) or `sticker_unsupported` (Instagram) |
+| `no_free_slot` | `409` | Every subscription slot for this channel type is taken; `occupied_by` lists the channels holding them |
+
+| Status | Meaning | What to do |
+|---|---|---|
+| `400` | The request cannot be carried out as sent — for example the channel is inactive or must be reconnected | Read `detail`; fix the request or [reconnect the channel](channels.md#reconnecting-an-inactive-channel) |
+| `401` | API key missing, malformed or revoked | Send a valid key — see [Authentication](https://fiwano.com/documentation#authentication) |
+| `402` | No active subscription, or the feature needs Pro (media, templates) and the channel is on Starter | See [Subscriptions & Billing](subscriptions.md) |
+| `403` | The account is inactive, or the OAuth code belongs to another account | Contact support if the account should be active |
+| `404` | Not found, or it belongs to another account | Check the ID |
+| `409` | No free subscription slot (`no_free_slot`) | Reconnect a channel, release a slot or add a subscription — see [subscription slots](channels.md#subscription-slots) |
+| `410` | Inbound media has expired | Download within 60 minutes — see [Downloading inbound media](webhooks.md#downloading-inbound-media) |
+| `422` | A field is missing, has the wrong type or breaks a constraint | Read the field list in `detail` |
+| `429` | Rate limit — per channel on sends, per API key on everything else | Retry after `Retry-After` — see [rate limits](capabilities.md#rate-limits) |
+| `502` | Meta failed on a sender-profile or template-management call (send endpoints never return it) | Retry later |
+| `503` | Temporarily unavailable | Retry after `Retry-After` |
+
+Do not rely on the body of a `5xx`; use the status and `Retry-After`. Codes per
+endpoint are in the [API Reference](openapi.yaml).
 
 ### Send error codes
 
-The three send endpoints answer `200` even when the send fails — the outcome is
-in `success`, `status`, and `error_code`. See
+When Meta rejects a message, its error code reaches you unchanged:
+
+- in the send response, as `error_code` next to `status: "failed"`;
+- in a `message.failed` webhook, as `errors[].code`, with `error_subcode` and
+  `error_data.details` when Meta gave them.
+
+`error` carries the readable reason: Meta's own text, plus a hint from Fiwano
+where Meta's text does not explain the problem.
+
+The *Retried* column applies to text and media sends: such a send answers
+`queued` and Fiwano retries it — see
 [Delivery and retries](sending-messages.md#delivery-and-retries).
+`send-template` never retries: there every error returns `failed`, with Meta's
+code in `error_code`.
 
-`error_code` is Meta's error code, passed through unchanged. It is present only
-when the failure came from Meta; a rejection by Fiwano itself uses an HTTP
-status code from the table above instead. `error` always carries a
-human-readable description, and for media sends a hint about the likely cause.
-
-| `error_code` | Meaning | Retried by Fiwano | What to do |
+| Code | Meaning | Retried | What to do |
 |---|---|---|---|
-| `10`, `200` | Meta denies this action for the account | no | Not a token problem: the channel stays connected and keeps receiving. Read `error` (Meta's own text) and check the account in Meta Business Settings |
-| `10` with *another app is controlling this thread* | Instagram/Messenger: the conversation is controlled by something other than Fiwano (Meta *Conversation Routing*) — see the two cases in the note below | no | Set Fiwano as the app in control — see [Prerequisites](channels.md#prerequisites) |
-| `100` | Invalid parameter — Meta reuses this for several unrelated causes, including **a file above the size cap** | no | Read `error` for the specific cause; check `media_url`, `media_type`, recipient format, and [file size](capabilities.md#outbound-media-size) |
-| `190` | Access token expired or revoked | no | Reconnect the channel |
-| `368` | Account temporarily blocked for policy violations | no | Resolve in Meta Business Manager |
-| `551` | Messenger/Instagram: this person cannot be messaged right now — they blocked the Page, closed the chat, restricted business messages, or never messaged the Page | no | Nothing on your side; only the person can lift it. Do not resend automatically |
-| `803` | Object does not exist or is unavailable | no | Check the recipient identifier |
-| `131008` | Required parameter missing | no | Fix the request payload |
-| `131009` | Parameter value invalid for this channel | no | Fix the request payload |
-| `131026` | Recipient is not reachable on this platform | no | Verify the recipient |
-| `131047` | 24h re-engagement window closed | no | Send an approved WhatsApp template — see [messaging windows](capabilities.md#messaging-windows-24h) |
-| `131051` | Unsupported message type for this channel | no | Check [channel capabilities](capabilities.md#channel-capabilities) |
-| `131052` | Meta could not download `media_url` | no | Verify the URL returns `200`, `Content-Type` matches `media_type`, and the signature has not expired |
-| `131053` | Meta could not process the media | **yes**, unless Meta's `details` name a format problem | Often transient. A WebP sent as `image`, or a sticker that breaks the WebP/512×512/size rules, fails at once with a hint — see [stickers](sending-messages.md#stickers) |
-| `131056` | Pair rate limit between this sender and recipient | **yes** | Slow down messages to that recipient |
-| `131057` | WhatsApp Business Account in maintenance mode (e.g. a throughput upgrade) | **yes** | Usually temporary; no action |
-| `133010` | WhatsApp number is not registered on the WhatsApp Business Platform — the *WhatsApp Business App* connection was not completed | no | Reconnect the channel choosing *WhatsApp Business App* and complete the connection step in the app — see [Reconnecting a channel](channels.md#reconnecting-an-inactive-channel) |
+| `10` | Meta refuses the action. There are four unrelated causes | no | See [Error 10](#error-10) |
+| `100` | Invalid parameter. Meta uses it for unrelated causes, including **a file above the [size cap](capabilities.md#outbound-media-size)** and a PSID/IGSID that is not a user of this Page | no | Read `error`; check `media_url`, `media_type`, file size and `recipient` |
+| `190` | Fiwano's access to the account was revoked or has expired. The channel is marked *Action required* ([`health`](channels.md#channel-health) in the API) and the owner is emailed | no | [Reconnect the channel](channels.md#reconnecting-an-inactive-channel) |
+| `200` | WhatsApp: Meta does not allow this account to send. Not a token problem: the channel stays connected and keeps receiving | no | Check the WhatsApp Business account in Meta Business Settings |
+| `368` | The account is temporarily blocked for policy violations | no | Resolve it in Meta Business Manager |
+| `551` | Messenger/Instagram: this person is not receiving your messages — they blocked the Page, closed the chat, restricted business messages, or never messaged the Page | no | Nothing to fix on your side; do not resend automatically |
+| `803` | The recipient does not exist or is unavailable | no | Check the recipient ID |
+| `131008`, `131009` | A required parameter is missing, or a value is not valid for this channel | no | Fix the request |
+| `131026` | WhatsApp: undeliverable — the number is not on WhatsApp, or the recipient has not accepted WhatsApp's terms or uses an old app version | no | Check the number; do not resend automatically |
+| `131042` | A payment problem on the WhatsApp Business account in Meta — no payment method, a credit line over its limit, the account suspended. This is Meta's billing, not your Fiwano subscription | **yes** | Fix billing for the WhatsApp Business account — see [Meta's help article](https://www.facebook.com/business/help/2225184664363779) |
+| `131047` | WhatsApp: more than 24 hours since the customer last wrote | no | Send an approved [template](sending-messages.md#template-messages) |
+| `131049`, `131050`, `130472` | WhatsApp marketing template not delivered: Meta's per-user marketing limit, the user stopped your marketing messages, or Meta held it back for an experiment | no | Do not resend automatically |
+| `131051` | This message type is not supported on the channel | no | See [channel capabilities](capabilities.md#channel-capabilities) |
+| `131052` | Meta could not download `media_url` | no | The URL must answer `200` with a `Content-Type` matching `media_type`, and its signature must still be valid |
+| `131053` | Meta could not process the media | **yes**, unless the file itself is wrong | Usually temporary. A WebP sent as `image`, or a sticker that breaks the [sticker rules](sending-messages.md#stickers), fails at once with a hint |
+| `131056` | WhatsApp: too many messages to the same recipient in a short time | **yes** | Slow down for that recipient |
+| `131057` | WhatsApp Business account in maintenance mode, for example a throughput upgrade | **yes** | Nothing; it is temporary |
+| `132000`, `132001`, `132012`, `132015`, `132016` | WhatsApp template problem: variables do not match the template (`132000`, `132012`), the template is missing or not approved in this language (`132001`), paused (`132015`) or disabled (`132016`) by Meta | no | Fix the variables, or check the template in WhatsApp Manager — see [WhatsApp Templates](templates.md) |
+| `133010` | The WhatsApp number is not registered on the WhatsApp Business Platform: the *WhatsApp Business App* connection was not completed | no | Reconnect choosing *WhatsApp Business App* and finish the step in the app — see [Reconnecting a channel](channels.md#reconnecting-an-inactive-channel) |
 
-Codes outside this table are passed through as Meta returns them. Anything not
-recognised as permanent is treated as transient and retried.
+Other codes reach you as Meta returns them, and Fiwano retries any code it does
+not know to be permanent. Meta's full lists:
+[WhatsApp](https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes),
+[Messenger and Instagram](https://developers.facebook.com/docs/messenger-platform/error-codes).
 
-<a id="thread-control"></a>
+#### Error `10`
 
-#### Error `10` — another app is controlling the thread
+Meta returns `10` for unrelated causes. The text in `error` tells them apart:
 
-On Instagram and Messenger, Meta lets only **one app own a conversation at a
-time** (*Conversation Routing*). When Fiwano is not that app, your reply is
-rejected with error `10`, and the incoming message still reaches your webhook so
-you keep full context. This is an account setting, not a fault — there are two
-causes:
-
-1. **Another connected app is the default routing app.** A CRM, chatbot or inbox
-   tool is set to control conversations. Set Fiwano as the *Default routing app*
-   and turn off *Take control of conversations* for that app (or disconnect it).
-2. **No other app — Meta's own inbox or AI is in control.** If someone answers
-   the conversation in **Meta Business Suite** or the **Page inbox**, or **Meta
-   AI** is enabled, Meta's inbox takes control and Fiwano is pushed aside. Nothing
-   to disconnect: stop answering these threads in the Meta inbox / turn off Meta
-   AI, and set Fiwano as the *Default routing app*.
-
-One normal-behaviour note: while a conversation is *idle* (no customer message in
-the last 24 hours on Messenger, or the Human Agent window on Instagram), only the
-default routing app may message — so making Fiwano the default is what fixes both
-cases. Where to change these settings is in [Prerequisites](channels.md#prerequisites).
-
-<a id="unverified-send-outcomes"></a>
-
-### Slow Meta responses
-
-Occasionally Meta takes longer than 30 seconds — sometimes more than a minute —
-to answer a send, most often while it downloads a large media file. Fiwano does
-not fail the message: the call returns `success: true`, `status: "queued"`, and
-the `message_id` is final. Fiwano then finishes the send with Meta on your
-behalf. What you see:
-
-- The usual `message.sent` / `message.delivered` / `message.read` webhooks for
-  that `message_id`, exactly as for a message that returned `sent` right away.
-- In rare cases the message reaches the recipient twice: if Meta has not
-  confirmed the send within a few minutes, Fiwano sends it once more, and the
-  first attempt may have gone through after all. A duplicate is preferred to a
-  lost message.
-- If the message cannot be confirmed at all, it becomes `failed` and the
-  channel owner receives the delivery digest email.
-
-**Do not resend on your side while the message is `queued`.** The same applies
-if your own HTTP client times out — see
-[Response time](sending-messages.md#response-time).
+| `error` contains | Cause | What to do |
+|---|---|---|
+| *outside of allowed window* | Messenger/Instagram: more than 24 hours since the user last wrote | Wait for the user to write again; there is no template workaround — see [messaging windows](capabilities.md#messaging-windows-24h) |
+| *another app is controlling this thread* | Messenger/Instagram: Fiwano is not the app in control of the conversation — another connected app, Meta's inbox or Meta AI is | Make Fiwano the *Default routing app* — see [Prerequisites](channels.md#prerequisites) |
+| *Meta has temporarily restricted this Page* (Fiwano's hint, sub-code `1893063`) | Messenger/Instagram: Meta restricted the Page from sending for activity against its messaging policies. Some sends may still go through | Check the Page in Account Quality in Meta Business Suite. Reconnecting does not help; Meta lifts the restriction |
+| anything else | Meta denies this action for the account | Read `error` and check the account in Meta Business Settings. Not a token problem: the channel stays connected |

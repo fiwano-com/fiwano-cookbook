@@ -52,7 +52,7 @@ type. Trial, Paddle and Enterprise entitlements are all subscriptions here.
 - **Paddle with cancellation scheduled** —
   `{status: "active", source: "paddle", auto_renew: false, expires_at: <cutoff>}`.
   The customer cancelled in Paddle; service continues until `expires_at`, then the
-  channel becomes orphaned.
+  subscription ends and the channel stops sending and receiving.
 - **Trial** —
   `{status: "active", source: "trial", tier: "pro", auto_renew: false, expires_at: <signup + 7 days>}`.
 - **Enterprise** —
@@ -107,8 +107,8 @@ curl -H "X-API-Key: $FIWANO_API_KEY" \
 ```
 
 Use `available_slots.<channel_type>.total > 0` as the signal that a new channel
-of that type can be connected. An inactive channel can still occupy a slot
-because Fiwano preserves the binding for reconnect. In `available_slots`, `total`
+of that type can be connected. A deactivated channel still occupies its slot
+(see [subscription slots](channels.md#subscription-slots)). In `available_slots`, `total`
 is the sum of the currently free `starter` and `pro` slots for that channel type.
 In each subscription, `assigned_channels` shows which channel is assigned to the
 subscription for each type; `null` means no channel is assigned there. The reverse
