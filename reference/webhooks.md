@@ -301,7 +301,7 @@ On Instagram and Facebook Messenger a user can share a post or a reel into the c
     "from_name": null,
     "type": "share",
     "share_type": "post",
-    "caption": "Sunset at the pier",
+    "caption": "Do you have this in blue?",
     "share": {"url": "https://www.instagram.com/p/ABC123/", "expires_at": null}
   }
 }
@@ -312,7 +312,7 @@ On Instagram and Facebook Messenger a user can share a post or a reel into the c
 | `share_type` | `post` (a shared post), `reel` (a shared reel), `story_mention` (Instagram: the user mentioned you in their story) |
 | `share.url` | Meta's link to the shared content. A post or reel link opens in Instagram / Facebook; a story mention links to the story media itself |
 | `share.expires_at` | `story_mention` only: the story disappears about 24 hours after it was posted (possibly earlier). `null` for posts and reels |
-| `caption` | The caption of the shared post or reel, when Meta provides it. Absent for story mentions |
+| `caption` | Text the user wrote with the share, when there is any — the same `caption` as on media. The shared post's own caption is not included |
 
 Shared content is not downloaded and there is no `data.media` block: a post belongs to its author, and Meta does not allow apps to store story media. A user's own photo or video sent as a message is still an ordinary `image` / `video` event.
 
