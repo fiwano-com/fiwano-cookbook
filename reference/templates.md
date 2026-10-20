@@ -2,9 +2,8 @@
 
 WhatsApp requires **pre-approved templates** to start a conversation outside the
 24-hour window (see [Capabilities](capabilities.md#messaging-windows-24h)).
-Templates are WhatsApp-only and require a **Pro license**. This page is about
-managing them; to *send* an approved template see
-[Sending → Template messages](sending-messages.md#template-messages).
+Templates are WhatsApp-only and require a **Pro license**. This page covers
+creating, managing and sending them.
 
 ### Lifecycle
 
@@ -14,16 +13,19 @@ Create → PENDING (Meta review, ~24h) → APPROVED (sendable)
 ```
 
 Meta can later pause (`PAUSED`, low quality) or disable (`DISABLED`) an approved
-template. A send then fails with `error_code` `132015` / `132016`; listing
-templates with its default sync shows the current status.
+template; a send then fails with `error_code` `132015` / `132016`. Statuses are
+refreshed from Meta automatically whenever you read templates. A `REJECTED`
+template carries Meta's `rejected_reason`, an approved one its `quality_score`
+(`GREEN`, `YELLOW`, `RED`, `UNKNOWN`).
 
-Templates belong to the channel's WhatsApp Business Account (WABA). Manage them
+Templates belong to the channel's WhatsApp Business Account (WABA): every number
+of the same WABA sees and sends the same templates. Manage them
 through these endpoints — full request/response schemas are in the
 [API Reference](openapi.yaml):
 
 | Task | Endpoint |
 |---|---|
-| List (filter by status; syncs from Meta by default) | `GET /api/v1/channels/{id}/templates` |
+| List (filter by status) | `GET /api/v1/channels/{id}/templates` |
 | Get one (components + variable definitions) | `GET /api/v1/channels/{id}/templates/{template_id}` |
 | Create (→ submitted to Meta, starts `PENDING`) | `POST /api/v1/channels/{id}/templates` |
 | Update components | `PUT /api/v1/channels/{id}/templates/{template_id}` |
@@ -32,7 +34,8 @@ through these endpoints — full request/response schemas are in the
 ### Creating a template
 
 A template is a `name` + `category` (`MARKETING`, `UTILITY`, or `AUTHENTICATION`)
-+ `language` + `components`. `BODY` is required; `HEADER` (text only), `FOOTER` and
++ `language` + `components`. `BODY` is required; `HEADER` (text only through the
+API; image, video and document headers can be created in the portal), `FOOTER` and
 `BUTTONS` are optional. Variables are `{{1}}, {{2}}` (positional) or `{{name}}`
 (named) — Meta requires `example` values for review.
 
@@ -60,8 +63,78 @@ curl -X POST https://fiwano.com/api/v1/channels/a1b2c3d4e5f67890/templates \
   recreate a template with the same name until then (Meta restriction).
 - **Creating** is capped at ~100 templates per WABA per hour.
 
-Once a template is `APPROVED`, send it with
-[`POST /api/v1/messages/send-template`](sending-messages.md#template-messages).
+<a id="sending"></a>
+
+### Sending a template
+
+`POST /api/v1/messages/send-template` sends an `APPROVED` template. Provide variable
+values keyed by component. **Positional** templates (`{{1}}`, `{{2}}`) take arrays:
+
+```bash
+curl -X POST https://fiwano.com/api/v1/messages/send-template \
+  -H "X-API-Key: YOUR_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "channel_id": "a1b2c3d4e5f67890",
+    "template_name": "order_confirmation",
+    "language": "en_US",
+    "recipient": "1234567890",
+    "variables": {
+      "header": ["Summer Sale"],
+      "body": ["Pablo", "ORD-123", "25%"],
+      "buttons": [{"index": 0, "value": "promo25"}]
+    }
+  }'
+```
+
+**Named** templates (`{{customer_name}}`) take objects:
+
+```bash
+  -d '{
+    "channel_id": "a1b2c3d4e5f67890",
+    "template_name": "welcome_message",
+    "language": "en_US",
+    "recipient": "1234567890",
+    "variables": {"body": {"customer_name": "Pablo", "order_number": "ORD-123"}}
+  }'
+```
+
+Omit `variables` entirely if the template has none.
+
+**Media header.** When the template header is an image, video or document
+(`variables.header_media` of the template), pass the file as an HTTPS URL in
+`header_media_url`. Meta downloads it as in
+[media sends](sending-messages.md#response-time), so such a send takes
+as long as a media send.
+
+The response is the same as for text and media sends: keep the `message_id` (a
+Fiwano UUID) to match delivery webhooks. A template send is never retried
+automatically — see [Delivery and retries](sending-messages.md#delivery-and-retries).
+
+<a id="authentication"></a>
+
+### Authentication (one-time codes)
+
+Meta sets the text of an `AUTHENTICATION` template ("*123456* is your
+verification code."); you choose the extras and add one copy-code button:
+
+```json
+"components": [
+  {"type": "BODY", "add_security_recommendation": true},
+  {"type": "FOOTER", "code_expiration_minutes": 10},
+  {"type": "BUTTONS", "buttons": [{"type": "OTP", "otp_type": "COPY_CODE", "text": "Copy code"}]}
+]
+```
+
+`FOOTER` is optional. One-tap and zero-tap buttons need an Android app — create
+those in WhatsApp Manager; Fiwano sends them like any other template.
+
+Send the code once — it also fills the copy-code button (up to 15 characters):
+
+```bash
+  -d '{"channel_id": "a1b2c3d4e5f67890", "template_name": "login_code",
+       "language": "en_US", "recipient": "1234567890",
+       "variables": {"body": ["482913"]}}'
+```
 
 ### Buttons
 

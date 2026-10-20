@@ -16,7 +16,7 @@ Meta or WhatsApp API key in your application.
 
 Outside the 24-hour window, WhatsApp requires an approved template message. That
 uses `/api/v1/messages/send-template` and is described in
-[Template messages](#template-messages). Instagram DM and Facebook Messenger use
+[WhatsApp Templates](templates.md#sending). Instagram DM and Facebook Messenger use
 the same text endpoint for ordinary replies, with IGSID or PSID as `recipient`.
 
 ### Text messages
@@ -129,57 +129,12 @@ To keep media sends fast, serve `media_url` from storage close to your users
 
 ### Template messages
 
-`POST /api/v1/messages/send-template` — **WhatsApp only, Pro required.** Use a
-pre-approved template to start a conversation outside the 24-hour window (see
-[Capabilities](capabilities.md#messaging-windows-24h)). Only `APPROVED`
-templates can be sent — to create and manage them, see
-[WhatsApp Templates](templates.md).
-
-Provide variable values keyed by component. **Positional** templates (`{{1}}`,
-`{{2}}`) take arrays:
-
-```bash
-curl -X POST https://fiwano.com/api/v1/messages/send-template \
-  -H "X-API-Key: YOUR_API_KEY" -H "Content-Type: application/json" \
-  -d '{
-    "channel_id": "a1b2c3d4e5f67890",
-    "template_name": "order_confirmation",
-    "language": "en_US",
-    "recipient": "1234567890",
-    "variables": {
-      "header": ["Summer Sale"],
-      "body": ["Pablo", "ORD-123", "25%"],
-      "buttons": [{"index": 0, "value": "promo25"}]
-    }
-  }'
-```
-
-**Named** templates (`{{customer_name}}`) take objects:
-
-```bash
-  -d '{
-    "channel_id": "a1b2c3d4e5f67890",
-    "template_name": "welcome_message",
-    "language": "en_US",
-    "recipient": "1234567890",
-    "variables": {"body": {"customer_name": "Pablo", "order_number": "ORD-123"}}
-  }'
-```
-
-Omit `variables` entirely if the template has none.
-
-Template sends return the same response shape as text and media sends. The
-`message_id` is a Fiwano UUID; keep it to correlate later delivery webhooks:
-
-```json
-{
-  "success": true,
-  "message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "error": null,
-  "error_code": null,
-  "status": "sent"
-}
-```
+`POST /api/v1/messages/send-template` — **WhatsApp only, Pro required.** Sends an
+approved template, the way to start a conversation outside the 24-hour window (see
+[Capabilities](capabilities.md#messaging-windows-24h)). Variables, media
+headers and authentication codes are described in
+[WhatsApp Templates → Sending a template](templates.md#sending). The
+response and the delivery rules are the same as for text and media — see below.
 
 ### Delivery and retries
 

@@ -76,7 +76,7 @@ code in `error_code`.
 | `131008`, `131009` | A required parameter is missing, or a value is not valid for this channel | no | Fix the request |
 | `131026` | WhatsApp: undeliverable — the number is not on WhatsApp, or the recipient has not accepted WhatsApp's terms or uses an old app version | no | Check the number; do not resend automatically |
 | `131042` | A payment problem on the WhatsApp Business account in Meta — no payment method, a credit line over its limit, the account suspended. This is Meta's billing, not your Fiwano subscription | **yes** | Fix billing for the WhatsApp Business account — see [Meta's help article](https://www.facebook.com/business/help/2225184664363779) |
-| `131047` | WhatsApp: more than 24 hours since the customer last wrote | no | Send an approved [template](sending-messages.md#template-messages) |
+| `131047` | WhatsApp: more than 24 hours since the customer last wrote | no | Send an approved [template](templates.md#sending) |
 | `131049`, `131050`, `130472` | WhatsApp marketing template not delivered: Meta's per-user marketing limit, the user stopped your marketing messages, or Meta held it back for an experiment | no | Do not resend automatically |
 | `131051` | This message type is not supported on the channel | no | See [channel capabilities](capabilities.md#channel-capabilities) |
 | `131052` | Meta could not download `media_url` | no | The URL must answer `200` with a `Content-Type` matching `media_type`, and its signature must still be valid |

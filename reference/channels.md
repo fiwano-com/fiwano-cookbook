@@ -274,8 +274,8 @@ A channel can stay active and still be unable to work, when Meta no longer lets
 Fiwano work with the account or number: the app was removed in Meta Business
 settings, a required permission was revoked, the Page or WhatsApp account became
 unavailable, the WhatsApp number is not on the WhatsApp Business Platform (the
-*WhatsApp Business App* connection was not completed), or Meta blocked the
-account. Fiwano then marks the channel **Action required** in the portal and
+*WhatsApp Business App* connection was not completed), Meta blocked the
+account, or Meta banned the WhatsApp number. Fiwano then marks the channel **Action required** in the portal and
 emails the account owner; the notice and the email say what to do. Until the
 cause is fixed, sends may fail — for example with [error `190`](errors.md#send-error-codes).
 
@@ -304,8 +304,8 @@ the channel's **Delivery problems** page in the portal.
 
 Reconnect a deactivated channel, or one marked *Action required*, by running the
 **same connection flow again for the same Meta account** (same WhatsApp number,
-Instagram account, or Facebook Page). When Meta has blocked the account, resolve
-it in Meta first — reconnecting alone does not clear it:
+Instagram account, or Facebook Page). When Meta has blocked the account or banned
+the number, resolve it in Meta first — reconnecting alone does not clear it:
 
 - The existing channel is **updated in place** — its `channel_id`, webhook
   URL/secret/events and history are preserved. No new channel is created and your

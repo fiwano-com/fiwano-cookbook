@@ -591,14 +591,14 @@ paths:
       description: 'List message templates for a WhatsApp channel.
 
 
-        By default, syncs templates from Meta before returning (sync=true).
+        Statuses are refreshed from Meta. `synced` is false when Meta could not be
 
-        Set sync=false to return cached data only (faster, but may be stale).
+        reached and the last known data is returned.
 
 
-        Templates are tied to the WhatsApp Business Account (WABA).
+        Templates are tied to the WhatsApp Business Account (WABA): every channel
 
-        Only WhatsApp channels support templates.'
+        of the same WABA lists the same templates.'
       operationId: list_templates_api_v1_channels__channel_id__templates_get
       security:
       - ApiKeyAuth: []
@@ -615,12 +615,11 @@ paths:
         required: false
         schema:
           type: boolean
-          description: Sync templates from Meta before returning. Set false for faster
-            cached data (may be stale).
+          description: Has no effect. Templates are refreshed from Meta automatically.
           default: true
           title: Sync
-        description: Sync templates from Meta before returning. Set false for faster
-          cached data (may be stale).
+        description: Has no effect. Templates are refreshed from Meta automatically.
+        deprecated: true
       - name: status
         in: query
         required: false
@@ -628,9 +627,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Filter by status: APPROVED, PENDING, or REJECTED.'
+          description: 'Filter by status: APPROVED, PENDING, REJECTED, PAUSED, ...'
           title: Status
-        description: 'Filter by status: APPROVED, PENDING, or REJECTED.'
+        description: 'Filter by status: APPROVED, PENDING, REJECTED, PAUSED, ...'
       responses:
         '200':
           description: Successful Response
@@ -705,9 +704,9 @@ paths:
       description: 'Get a specific template by its ID.
 
 
-        Returns cached template data including variable definitions
+        Returns the template refreshed from Meta (the last known data if Meta
 
-        with example values for each variable.'
+        cannot be reached), including variable definitions with example values.'
       operationId: get_template_api_v1_channels__channel_id__templates__template_id__get
       security:
       - ApiKeyAuth: []
@@ -924,10 +923,10 @@ components:
           description: '''ok'', or ''action_required'' when Meta no longer lets Fiwano
             work with this account or number (access or a permission revoked, number
             removed or not connected to the WhatsApp Business Platform, account blocked
-            by Meta). The channel is not deactivated, but messages may fail until
-            the owner fixes the cause — in Meta, or by running the connect flow again
-            for the same account. Clears automatically once Meta''s checks pass, and
-            on reconnect.'
+            or number banned by Meta). The channel is not deactivated, but messages
+            may fail until the owner fixes the cause — in Meta, or by running the
+            connect flow again for the same account. Clears automatically once Meta''s
+            checks pass, and on reconnect.'
         reason:
           anyOf:
           - type: string
@@ -1550,7 +1549,17 @@ components:
           description: 'Variable values keyed by component type. Positional: {"header":
             ["Sale"], "body": ["Pablo", "ORD-123"], "buttons": [{"index": 0, "value":
             "promo"}]}. Named: {"body": {"customer_name": "Pablo", "order_number":
-            "ORD-123"}}. Omit if template has no variables.'
+            "ORD-123"}}. Authentication: {"body": ["123456"]} — the code also fills
+            the copy-code button. Omit if template has no variables.'
+        header_media_url:
+          anyOf:
+          - type: string
+            maxLength: 2048
+          - type: 'null'
+          title: Header Media Url
+          description: HTTPS URL of the header image, video or document — required
+            when the template header is media (see variables.header_media), not allowed
+            otherwise. Meta downloads the file, as in send-media.
       type: object
       required:
       - channel_id
@@ -1877,6 +1886,22 @@ components:
           - type: 'null'
           title: Buttons
           description: Button definitions (for BUTTONS component)
+        add_security_recommendation:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Add Security Recommendation
+          description: 'AUTHENTICATION BODY only: add Meta''s ''do not share this
+            code'' note.'
+        code_expiration_minutes:
+          anyOf:
+          - type: integer
+            maximum: 90.0
+            minimum: 1.0
+          - type: 'null'
+          title: Code Expiration Minutes
+          description: 'AUTHENTICATION FOOTER only: show ''This code expires in N
+            minutes'' (1–90).'
       type: object
       required:
       - type
@@ -1917,6 +1942,14 @@ components:
           description: 'Variable format: ''positional'' for {{1}}, {{2}} or ''named''
             for {{customer_name}}'
           default: positional
+        message_send_ttl_seconds:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Message Send Ttl Seconds
+          description: How long Meta keeps trying to deliver a message sent with this
+            template, in seconds (Meta's allowed range depends on the category).
       type: object
       required:
       - name
@@ -1970,6 +2003,20 @@ components:
         status:
           type: string
           title: Status
+        rejected_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rejected Reason
+          description: Meta's reason when status is REJECTED (e.g. INVALID_FORMAT,
+            PROMOTIONAL, TAG_CONTENT_MISMATCH). Null otherwise.
+        quality_score:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Quality Score
+          description: 'Meta''s quality rating: GREEN, YELLOW, RED or UNKNOWN. Null
+            if not reported.'
         components:
           items: {}
           type: array
@@ -2057,6 +2104,13 @@ components:
           type: string
           title: Parameter Format
           default: positional
+        header_media:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Header Media
+          description: '''image'', ''video'' or ''document'' when the header is media:
+            send it with header_media_url. Null otherwise.'
         header:
           anyOf:
           - items:
