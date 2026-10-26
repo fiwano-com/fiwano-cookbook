@@ -141,8 +141,15 @@ Send the code once — it also fills the copy-code button (up to 15 characters):
 `BUTTONS` can hold `URL`, phone-number and `QUICK_REPLY` buttons. When a
 recipient taps a quick-reply button, your webhook receives an ordinary
 [`message.received` of `type: "text"`](webhooks.md#button-taps)
-whose `text` is the button label, with `reply_to.message_id` equal to the
-`message_id` you got from `send-template` — so you know both which button was
-chosen and which send it answers. Standalone interactive reply-button and list
-messages (outside templates) cannot be sent yet, but taps on them are received
-the same way.
+whose `text` is the button label and `button_id` its id, with
+`reply_to.message_id` equal to the `message_id` you got from `send-template` — so
+you know both which button was chosen and which send it answers.
+
+Give a quick-reply button its id when sending, in `variables.buttons`:
+`{"index": 0, "id": "confirm:ORD-123"}` (up to 256 characters). Without an id,
+`button_id` is the button text. `value` stays for the variable of a URL or
+copy-code button.
+
+Inside the 24-hour window, buttons, cards and
+lists can be sent without a template — see
+[Interactive messages](sending-messages.md#interactive-messages).

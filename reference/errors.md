@@ -27,6 +27,7 @@ may want to handle in code carry a structured `detail` with a stable `code`, a
 | `text_too_long` | `400` | Text is over the channel's limit; `max_length` and `actual_length` are included |
 | `invalid_recipient` | `400` | `recipient` is empty, has no digits, or is not a numeric PSID/IGSID on Messenger/Instagram; `reason` is `empty`, `no_digits` or `not_numeric` |
 | `recipient_equals_sender` | `400` | A WhatsApp send is addressed to the channel's own number |
+| `invalid_interactive_request` | `400` | `send-interactive` asked for something the channel does not have; `reason` names the rule (`quick_replies_unsupported`, `list_unsupported`, `text_with_cards_unsupported`, `text_required`, `whatsapp_button_mix`, `card_buttons_mismatch`, `text_too_long`) and `hint` the fix — see [Interactive messages](sending-messages.md#interactive-messages) |
 | `invalid_media_request` | `400` | A sticker uses the wrong field for the channel; `reason` is `media_url_required` (WhatsApp), `sticker_id_required` (Messenger) or `sticker_unsupported` (Instagram) |
 | `no_free_slot` | `409` | Every subscription slot for this channel type is taken; `occupied_by` lists the channels holding them |
 

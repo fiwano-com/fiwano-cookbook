@@ -262,7 +262,7 @@ The response is the raw file bytes with the original `Content-Type` (and a `Cont
 
 #### message.received — button taps and menu choices (all channels)
 
-When a user picks one of the options you offered, the choice arrives as an ordinary `text` message whose `text` is the label they saw — a WhatsApp template quick-reply button, a WhatsApp interactive reply button or list row, an Instagram or Messenger quick reply, and Messenger / Instagram postbacks (Get Started, ice breakers, persistent menu, template buttons):
+When a user picks one of the options you offered, the choice arrives as an ordinary `text` message whose `text` is the label they saw, and `button_id` is the option's machine id — the `id` you set in [`send-interactive`](sending-messages.md#interactive-messages). This covers WhatsApp interactive reply buttons and list rows, Instagram and Messenger quick replies and template buttons, WhatsApp template quick-reply buttons, and Messenger / Instagram postbacks configured outside Fiwano (Get Started, ice breakers, persistent menu):
 
 ```json
 {
@@ -275,13 +275,14 @@ When a user picks one of the options you offered, the choice arrives as an ordin
     "from": "1234567890",
     "from_name": "John Doe",
     "type": "text",
-    "text": "Confirm",
+    "text": "Add to cart",
+    "button_id": "add_to_cart:SKU-1",
     "reply_to": {"message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
   }
 }
 ```
 
-There is no separate event and no machine id for the button: one text handler covers typed answers and taps alike. Which message the button belonged to is in [`reply_to`](#reply-to) — on WhatsApp a template tap always quotes the template send, so `reply_to.message_id` is the UUID you got from `send-template`.
+There is no separate event: one text handler covers typed answers and taps alike, and `button_id` tells them apart — it is present only on a tap. It is the `id` you set — in `send-interactive`, or in `send-template` for a [quick-reply button](templates.md#buttons) (without one, the button text). For buttons configured outside Fiwano, such as a Messenger menu or ice breakers, it is the payload set there. On WhatsApp, which message the button belonged to is in [`reply_to`](#reply-to): `reply_to.message_id` is the UUID you got from `send-interactive` or `send-template`. Instagram and Messenger do not report which message a tap answers, so there `button_id` is how you recognise it.
 
 <a id="shares"></a>
 

@@ -583,6 +583,55 @@ paths:
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
+  /api/v1/messages/send-interactive:
+    post:
+      tags:
+      - api
+      summary: Send Interactive Message
+      description: 'Send buttons, cards, quick replies or a list through a connected
+        Pro channel.
+
+
+        One request shape for every channel; each channel gets its native message
+
+        (WhatsApp interactive message, Instagram/Messenger template or quick
+
+        replies). Only inside the 24-hour customer service window. A tap arrives as
+
+        `message.received` of `type: "text"` with `button_id` = the `id` you set.
+
+        Card images are downloaded by Meta during the call, like `send-media`.
+
+        Shapes the channel cannot send are refused with
+
+        `400 invalid_interactive_request` (`reason`, `message`, `hint`) before Meta
+
+        is called; `recipient` follows the text endpoint''s preflight. Transient
+
+        failures are queued; permanent errors return `success: false`.'
+      operationId: send_interactive_message_api_v1_messages_send_interactive_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendInteractiveRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
   /api/v1/channels/{channel_id}/templates:
     get:
       tags:
@@ -1319,6 +1368,164 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    InteractiveButton:
+      properties:
+        type:
+          type: string
+          enum:
+          - reply
+          - url
+          title: Type
+          description: '''reply'' — tapping sends `title` back as a text message with
+            `button_id` = `id`; ''url'' — opens `url`, no webhook.'
+        title:
+          type: string
+          maxLength: 20
+          minLength: 1
+          title: Title
+          description: Button label, up to 20 characters
+        id:
+          anyOf:
+          - type: string
+            maxLength: 256
+            minLength: 1
+          - type: 'null'
+          title: Id
+          description: 'Reply buttons only: your identifier, returned as `button_id`
+            when the user taps'
+        url:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Url
+          description: 'URL buttons only: HTTPS link opened by the button'
+      type: object
+      required:
+      - type
+      - title
+      title: InteractiveButton
+      description: 'One button: a reply the user taps, or a link that opens in the
+        browser.'
+    InteractiveCard:
+      properties:
+        image_url:
+          type: string
+          maxLength: 2048
+          title: Image Url
+          description: HTTPS URL of a JPEG or PNG image; Meta downloads it while sending
+        title:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Title
+          description: Card title, one line, up to 80 characters
+        subtitle:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Subtitle
+          description: Second line, up to 80 characters
+        buttons:
+          items:
+            $ref: '#/components/schemas/InteractiveButton'
+          type: array
+          maxItems: 3
+          minItems: 1
+          title: Buttons
+      type: object
+      required:
+      - image_url
+      - title
+      - buttons
+      title: InteractiveCard
+      description: 'One card: picture, title, optional subtitle, 1–3 buttons.'
+    InteractiveList:
+      properties:
+        button:
+          type: string
+          maxLength: 20
+          minLength: 1
+          title: Button
+          description: Label of the button that opens the list
+        sections:
+          items:
+            $ref: '#/components/schemas/InteractiveListSection'
+          type: array
+          maxItems: 10
+          minItems: 1
+          title: Sections
+      type: object
+      required:
+      - button
+      - sections
+      title: InteractiveList
+      description: 'WhatsApp list: a button that opens up to 10 rows in up to 10 sections.'
+    InteractiveListRow:
+      properties:
+        id:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Id
+          description: Returned as `button_id` when the user picks the row
+        title:
+          type: string
+          maxLength: 24
+          minLength: 1
+          title: Title
+        description:
+          anyOf:
+          - type: string
+            maxLength: 72
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - id
+      - title
+      title: InteractiveListRow
+      description: One selectable row of a WhatsApp list.
+    InteractiveListSection:
+      properties:
+        title:
+          type: string
+          maxLength: 24
+          minLength: 1
+          title: Title
+        rows:
+          items:
+            $ref: '#/components/schemas/InteractiveListRow'
+          type: array
+          maxItems: 10
+          minItems: 1
+          title: Rows
+      type: object
+      required:
+      - title
+      - rows
+      title: InteractiveListSection
+    InteractiveQuickReply:
+      properties:
+        id:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Id
+          description: Returned as `button_id` when the user taps
+        title:
+          type: string
+          maxLength: 20
+          minLength: 1
+          title: Title
+          description: Chip label, up to 20 characters
+      type: object
+      required:
+      - id
+      - title
+      title: InteractiveQuickReply
+      description: One quick reply chip (Instagram / Messenger).
     RedirectCreateRequest:
       properties:
         uri_pattern:
@@ -1378,6 +1585,78 @@ components:
       - uri_pattern
       title: RedirectOut
       description: Allowed redirect URI.
+    SendInteractiveRequest:
+      properties:
+        channel_id:
+          type: string
+          title: Channel Id
+          description: Channel ID to send from
+        recipient:
+          type: string
+          maxLength: 100
+          title: Recipient
+          description: Recipient identifier
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+          description: Message text. Required with buttons, quick_replies and list;
+            with cards — required on WhatsApp for 2+ cards, not accepted on Instagram/Messenger.
+        buttons:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/InteractiveButton'
+            type: array
+            maxItems: 3
+            minItems: 1
+          - type: 'null'
+          title: Buttons
+          description: 1–3 buttons under the text
+        cards:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/InteractiveCard'
+            type: array
+            maxItems: 10
+            minItems: 1
+          - type: 'null'
+          title: Cards
+          description: 1–10 cards; 2+ scroll as a carousel
+        quick_replies:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/InteractiveQuickReply'
+            type: array
+            maxItems: 13
+            minItems: 1
+          - type: 'null'
+          title: Quick Replies
+          description: 'Instagram/Messenger: 1–13 chips that disappear after a tap'
+        list:
+          anyOf:
+          - $ref: '#/components/schemas/InteractiveList'
+          - type: 'null'
+          description: 'WhatsApp: a list of up to 10 rows'
+      type: object
+      required:
+      - channel_id
+      - recipient
+      title: SendInteractiveRequest
+      description: 'Send a message the user answers with a tap. Requires a Pro license.
+
+
+        Exactly one of `buttons`, `cards`, `quick_replies` or `list`. Every
+
+        channel sends its native message; a shape the channel does not have is
+
+        refused with `400 invalid_interactive_request` before Meta is called:
+
+        `quick_replies` are Instagram/Messenger only, `list` is WhatsApp only,
+
+        WhatsApp sends either reply buttons or one url button (not a mix), and
+
+        Instagram/Messenger cards carry no `text`.'
     SendMediaRequest:
       properties:
         channel_id:
@@ -1548,7 +1827,10 @@ components:
           title: Variables
           description: 'Variable values keyed by component type. Positional: {"header":
             ["Sale"], "body": ["Pablo", "ORD-123"], "buttons": [{"index": 0, "value":
-            "promo"}]}. Named: {"body": {"customer_name": "Pablo", "order_number":
+            "promo"}]}. Buttons: `value` fills a URL or copy-code button''s variable;
+            `id` (optional, quick-reply buttons only, up to 256 characters) is returned
+            as `button_id` when the user taps the button — without it `button_id`
+            is the button text. Named: {"body": {"customer_name": "Pablo", "order_number":
             "ORD-123"}}. Authentication: {"body": ["123456"]} — the code also fills
             the copy-code button. Omit if template has no variables.'
         header_media_url:

@@ -8,6 +8,7 @@ What each channel supports, the license tiers, and the platform limits.
 |---|---|---|---|
 | Outbound text — max length | 4096 chars | 1000 chars | 2000 chars |
 | Outbound media (Pro) | image, audio, video, document, sticker (WebP file) | image, audio, video, document | image, audio, video, document, sticker (Meta catalog `sticker_id`) |
+| Interactive messages (Pro) | reply / url buttons, cards (carousel), list | reply / url buttons, cards (carousel), quick replies | reply / url buttons, cards (carousel), quick replies |
 | Template messages (Pro) | ✅ Required outside 24h window | ❌ Not supported | ❌ Not supported |
 | Incoming webhooks — text | ✅ `type: "text"` | ✅ `type: "text"` | ✅ `type: "text"` |
 | Incoming webhooks — media (Pro) | image, audio, video, document (stickers as `image` + `media.sticker`) | image, audio, video, document | image, audio, video, document (stickers as `image` + `media.sticker`) |
@@ -26,7 +27,7 @@ Fiwano offers two license tiers. Each connected channel requires an active licen
 | Tier | Monthly | Capabilities |
 |---|---|---|
 | **Starter** | $12 | Unlimited inbound and outbound text messages, delivery statuses |
-| **Pro** | $19 | Everything in Starter **+** inbound media with files, outbound media via HTTPS URL (signed URLs supported), WhatsApp template management and sending |
+| **Pro** | $19 | Everything in Starter **+** inbound media with files, outbound media via HTTPS URL (signed URLs supported), interactive messages (buttons, cards, quick replies, lists), WhatsApp template management and sending |
 
 New accounts start with a 7-day free trial (Pro tier). For the billing lifecycle and how a channel's subscription state is reported, see [Subscriptions & Billing](subscriptions.md). For how this flat fee relates to Meta's own per-message charges, see [Messaging Costs Explained](https://fiwano.com/documentation/messaging-costs).
 
@@ -95,7 +96,7 @@ unsupported-format rejection rather than relying on a fixed list.
 - **Inbound media** (images, audio, video, documents) is stored for **60
   minutes**. Download it via `GET /api/v1/media/{media_id}` promptly after the
   webhook. Maximum file size: **10 MB**.
-- **Pro license required** for sending/receiving media and using WhatsApp
-  templates. With a Starter license, inbound media arrives as
+- **Pro license required** for sending/receiving media, sending interactive
+  messages and using WhatsApp templates. With a Starter license, inbound media arrives as
   `type: "unsupported"` with `upgrade_required: "pro"`. See
   [Subscriptions & Billing](subscriptions.md).
