@@ -1221,6 +1221,10 @@ components:
           - type: string
           - type: 'null'
           title: Webhook Secret
+          description: The channel's webhook secret, returned only when this request
+            set or changed it (auto-generated, or the value you passed). null when
+            the secret was left as it was. It is never returned again — store it now;
+            has_webhook_secret on GET tells whether one is configured.
         webhook_events:
           anyOf:
           - items:
@@ -1341,6 +1345,10 @@ components:
           - type: string
           - type: 'null'
           title: Webhook Secret
+          description: The channel's webhook secret, returned only when this call
+            set or changed it (auto-generated, or the value you passed). null when
+            the channel kept its existing secret, e.g. on reconnect. It is never returned
+            again — store it now.
         webhook_events:
           anyOf:
           - items:

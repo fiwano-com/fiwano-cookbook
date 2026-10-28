@@ -95,7 +95,8 @@ unsupported-format rejection rather than relying on a fixed list.
 
 - **Inbound media** (images, audio, video, documents) is stored for **60
   minutes**. Download it via `GET /api/v1/media/{media_id}` promptly after the
-  webhook. Maximum file size: **10 MB**.
+  webhook. Maximum file size: **10 MB**, any file type. A larger file arrives
+  with `download_url: null` and its real `file_size`.
 - **Pro license required** for sending/receiving media, sending interactive
   messages and using WhatsApp templates. With a Starter license, inbound media arrives as
   `type: "unsupported"` with `upgrade_required: "pro"`. See

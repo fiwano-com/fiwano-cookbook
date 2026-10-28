@@ -207,9 +207,9 @@ Instagram and Facebook Messenger deliver the same `data.media` block; only `data
 
 `data.type` is the message type on every channel: `text`, `image`, `audio`, `video`, `document`, `share`, or `unsupported`. Route on it. Should a type your integration does not recognize ever appear, handle it like `unsupported` (see [Compatibility](https://fiwano.com/documentation#compatibility)). The four media types are exactly the values accepted as the outbound `media_type`, so no type mapping is needed to forward a media message — only the file has to be re-hosted, because `download_url` is authenticated (see [Downloading inbound media](#downloading-inbound-media)).
 
-**Stickers arrive as `image`** on every channel, with `media.sticker: true` so you can tell them from photos. A WhatsApp sticker is a WebP file (`mime_type: "image/webp"`); a Messenger sticker also carries Meta's persistent `media.sticker_id` (`369239263222822` is the thumbs up). Instagram does not deliver stickers at all. To send a sticker back use [`media_type: "sticker"`](sending-messages.md#stickers) — forwarding a WebP as `image` is rejected by WhatsApp.
+**Stickers arrive as `image`** on every channel. On WhatsApp and Messenger they carry `media.sticker: true` so you can tell them from photos. A WhatsApp sticker is a WebP file (`mime_type: "image/webp"`); a Messenger sticker also carries Meta's persistent `media.sticker_id` (`369239263222822` is the thumbs up). On Instagram a sticker or a GIF picked in the app arrives as an ordinary image — `type: "image"`, `mime_type: "image/gif"`, no `media.sticker` — because Meta sends no sticker marker there, so a sticker cannot be told apart from a GIF. To send a sticker back use [`media_type: "sticker"`](sending-messages.md#stickers) — forwarding a WebP as `image` is rejected by WhatsApp.
 
-Instagram and Facebook Messenger also use attachments for things that are not a file. A shared post, reel or story mention arrives as [`type: "share"`](#shares); a location pin or a product card arrives as `type: "unsupported"` with no `data.media` block — see **unsupported type** below.
+Instagram and Facebook Messenger also use attachments for things that are not a file. A shared post, reel or story, or a story mention, arrives as [`type: "share"`](#shares); a location pin or a product card arrives as `type: "unsupported"` with no `data.media` block — see **unsupported type** below.
 
 When Meta includes text together with media, Fiwano exposes that accompanying text as `data.caption` on the media event. Plain text messages continue to use `data.text`. This rule is the same across WhatsApp, Instagram and Facebook Messenger.
 
@@ -233,14 +233,14 @@ The `download_url` is authenticated; fetch it with your `X-API-Key`. Do not pass
 |---|---|---|
 | `media_id` | string | Media file ID — use in `GET /api/v1/media/{media_id}` to download |
 | `voice` | bool | Present only for WhatsApp voice messages (`true`). Omitted for IG/FB because Meta does not provide a reliable voice flag there. |
-| `sticker` | bool | Present only when the image is a sticker (`true`) — WhatsApp (WebP) and Facebook Messenger. |
+| `sticker` | bool | Present only when the image is a sticker (`true`) — WhatsApp (WebP) and Facebook Messenger. Never set on Instagram: Instagram stickers arrive as plain GIF images. |
 | `sticker_id` | string | Facebook Messenger stickers only — Meta's persistent sticker id. Send it back with `media_type: "sticker"`. |
 | `mime_type` | string | MIME type (e.g. `image/jpeg`, `audio/ogg; codecs=opus`) |
 | `file_size` | int | File size in bytes |
-| `filename` | string\|null | Original filename (documents only) |
+| `filename` | string\|null | Original filename (documents only). On Facebook Messenger it is the name as Meta delivers it — Meta replaces spaces with `-` and drops some punctuation. The Instagram app does not send documents. |
 | `sha256` | string\|null | SHA-256 hash from Meta (WhatsApp only) |
 | `duration_ms` | int\|null | Duration in milliseconds (audio/video only) |
-| `download_url` | string\|null | Authenticated download URL. `null` if download from Meta failed. |
+| `download_url` | string\|null | Authenticated download URL. `null` if the file is unavailable: the download from Meta failed or the file is over the [10 MB limit](capabilities.md#media-limits) (`file_size` then still shows its real size). |
 | `error` | string | Present only when download failed — describes the error |
 | `expires_at` | string | ISO 8601 timestamp — file is deleted after this time |
 
@@ -256,7 +256,7 @@ curl https://fiwano.com/api/v1/media/m1b2c3d4e5f67890 \
   --output photo.jpg
 ```
 
-The response is the raw file bytes with the original `Content-Type` (and a `Content-Disposition` filename when known). Files expire about 60 minutes after Fiwano retrieves them from Meta; `media.expires_at` is authoritative. Download promptly and re-host anything you need to keep; after expiry the URL returns `410 Gone`. Sizes are in [Capabilities](capabilities.md#media-limits); status codes in the [API Reference](openapi.yaml).
+Any file type Meta delivers is available; the only limit is the size. The response is the raw file bytes with the original `Content-Type` and, when the name is known, `Content-Disposition: attachment` per RFC 6266 — `filename` (an ASCII fallback, `_` for other characters) followed by `filename*` with the exact UTF-8 name when the two differ. Prefer `filename*`, or simply use `media.filename`. Files expire about 60 minutes after Fiwano retrieves them from Meta; `media.expires_at` is authoritative. Download promptly and re-host anything you need to keep; after expiry the URL returns `410 Gone`. Sizes are in [Capabilities](capabilities.md#media-limits); status codes in the [API Reference](openapi.yaml).
 
 <a id="button-taps"></a>
 
@@ -286,9 +286,9 @@ There is no separate event: one text handler covers typed answers and taps alike
 
 <a id="shares"></a>
 
-#### message.received — shared posts, reels and story mentions
+#### message.received — shared posts, reels, stories and story mentions
 
-On Instagram and Facebook Messenger a user can share a post or a reel into the conversation, or mention your account in their story. These arrive as `type: "share"`:
+On Instagram and Facebook Messenger a user can share a post or a reel into the conversation; on Instagram they can also send a story with the story's share button, or mention your account in their story. These arrive as `type: "share"`:
 
 ```json
 {
@@ -301,21 +301,23 @@ On Instagram and Facebook Messenger a user can share a post or a reel into the c
     "from": "6543217890123456",
     "from_name": null,
     "type": "share",
-    "share_type": "post",
+    "share_type": "reel",
     "caption": "Do you have this in blue?",
-    "share": {"url": "https://www.instagram.com/p/ABC123/", "expires_at": null}
+    "share": {"url": "https://www.instagram.com/reel/ABC123/", "expires_at": null}
   }
 }
 ```
 
 | Field | Description |
 |---|---|
-| `share_type` | `post` (a shared post), `reel` (a shared reel), `story_mention` (Instagram: the user mentioned you in their story) |
-| `share.url` | Meta's link to the shared content. A post or reel link opens in Instagram / Facebook; a story mention links to the story media itself |
-| `share.expires_at` | `story_mention` only: the story disappears about 24 hours after it was posted (possibly earlier). `null` for posts and reels |
+| `share_type` | `post` (a shared post), `reel` (a shared reel), `story` (Instagram: the user sent you a story — theirs or someone else's), `story_mention` (Instagram: the user mentioned you in their story) |
+| `share.url` | Meta's link to the shared content. A Facebook post or a reel: the page, which opens in Facebook / Instagram. An Instagram post: the post's image file (one image, also for a carousel) — Meta sends no link to the post page and does not say how long this one stays valid, so do not store it. A story or a story mention: the story media itself |
+| `share.expires_at` | `story` and `story_mention` only: the story disappears within 24 hours (Meta does not say when it was posted, so this is 24 hours after the message — the latest it can still be there). `null` for posts and reels |
 | `caption` | Text the user wrote with the share, when there is any — the same `caption` as on media. The shared post's own caption is not included |
 
 Shared content is not downloaded and there is no `data.media` block: a post belongs to its author, and Meta does not allow apps to store story media. A user's own photo or video sent as a message is still an ordinary `image` / `video` event.
+
+**Facebook Messenger.** Meta sends a shared post as `share` only when the post has its own photo (`share_type: "post"`) or video (`"reel"`). Other posts — text-only or from a group — Marketplace items and Facebook stories (which can only be shared as a link) arrive as `type: "text"` with the link, the same as a link the user typed. Text the user adds to a share arrives as a separate `text` message.
 
 <a id="reply-to"></a>
 
@@ -440,10 +442,10 @@ Upgrade via the Billing page in the portal to receive full media content.
 | Channel | `unsupported_type` values |
 |---|---|
 | WhatsApp | `location`, `contacts`, `order` (catalog order), `system` (for example a number change), `edit` and `revoke` (a message edited or deleted in the WhatsApp Business app), `nfm_reply` (a WhatsApp Flow response), `poll_creation`, `poll_update`, `gif`, `group_invite`, and any other type WhatsApp reports |
-| Instagram | `template` (a product or card shared from a catalog), `ephemeral` (a view-once photo or video — Meta does not deliver the content), `unsupported` (Instagram itself could not deliver the content) |
-| Facebook Messenger | `template`, `location`, `appointment_booking`, `fallback` (a shared link that came without a URL), `unsupported` |
+| Instagram | `template` (a card Meta sends instead of the content, for example a shared location), `ephemeral` (a view-once photo or video — Meta does not deliver the content), `unsupported` (Instagram itself could not deliver the content) |
+| Facebook Messenger | `template`, `location`, `appointment_booking`, `fallback` (a shared item Meta delivered without a link), `unsupported` |
 
-Any type not listed here arrives the same way, so an unfamiliar `unsupported_type` is still just unsupported content. Message reactions, message edits and deletions, and messages in WhatsApp groups are not delivered as webhook events. A Messenger link preview never becomes `unsupported`: the message text with the link is delivered as `text`, and a forwarded link without text arrives as `text` containing the URL.
+Any type not listed here arrives the same way, so an unfamiliar `unsupported_type` is still just unsupported content. Message reactions, message edits and deletions, and messages in WhatsApp groups are not delivered as webhook events. A Messenger link preview arrives as `text`: with the message text when the user wrote any, otherwise as `text` containing the URL. Only a preview without a link becomes `unsupported` / `fallback`.
 
 <a id="message-echo"></a>
 
@@ -515,8 +517,8 @@ occasionally arrive before the echo it belongs to. Correlate by `message_id` and
 upsert rather than relying on arrival order.
 
 **Media in echoes is not delivered.** An echoed media message keeps its real
-`data.type` (`image`, `audio`, `video`, `document`; a sticker is `image` with
-`media.sticker: true`) and a caption when present, but the file itself is
+`data.type` (`image`, `audio`, `video`, `document`; a sticker is `image`, with
+`media.sticker: true` on WhatsApp and Messenger) and a caption when present, but the file itself is
 skipped — `data.media` arrives with no download:
 
 ```json
@@ -527,7 +529,7 @@ skipped — `data.media` arrives with no download:
     "status": "sent",
     "type": "image",
     "caption": "Invoice photo",
-    "media": {"media_id": null, "download_url": null, "unavailable": "echo_media_not_supported", "kind": "image"}
+    "media": {"media_id": null, "download_url": null, "unavailable": "echo_media_not_supported"}
   }
 }
 ```

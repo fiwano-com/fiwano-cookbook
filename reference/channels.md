@@ -193,8 +193,10 @@ Portal and the API deliberately behave differently:
   `webhook_secret` (**at most 64 characters**) in that same call.
 
 **Reading it back.** The value is only returned the moment it is set or changed — in
-the Portal's one-time reveal, or in the `exchange-code` and
-`PATCH /api/v1/channels/{id}` responses. `GET /api/v1/channels` and
+the Portal's one-time reveal, or in the response of the `exchange-code` or
+`PATCH /api/v1/channels/{id}` call that set or changed it. Every other response of
+those two calls (only events changed, webhook removed, a reconnect that keeps the
+existing secret) carries `webhook_secret: null`. `GET /api/v1/channels` and
 `GET /api/v1/channels/{id}` never return it; they only report
 `has_webhook_secret: true | false`. **Store the value when it is shown** — if you
 lose it, your only option is to set a new one.

@@ -71,6 +71,13 @@ curl -X POST https://fiwano.com/api/v1/messages/send-media \
   }'
 ```
 
+`caption` (up to 1024 characters) and `filename` (up to 255) are WhatsApp fields:
+`caption` is shown under an `image`, `video` or `document`, and `filename` names a
+`document`. Anywhere else they are accepted and ignored — a WhatsApp `audio` or
+sticker has no caption, and on Instagram and Messenger an attachment carries
+neither: the file arrives on its own, named after its URL. To add text there, send
+it with [`/messages/send`](#text-messages) before or after the file.
+
 Always check `success` and `status`. Permanent failures include a Meta
 `error_code` — for example `131052` when Meta cannot download the URL; temporary
 ones, such as `131053`, return `queued` and are retried like text. File-size caps are in
@@ -100,7 +107,8 @@ channel — `sticker_id` on WhatsApp, `media_url` on Messenger, any sticker on
 Instagram — is answered with `400 invalid_media_request` before Meta is called
 (`reason` says which). A WebP that breaks WhatsApp's rules, or a WebP sent as
 `image`, fails at once with Meta code `131053` and a hint; it is not retried.
-An inbound sticker arrives as `image` with `media.sticker: true` — see
+An inbound sticker arrives as `image` — with `media.sticker: true` on WhatsApp and
+Messenger, as a plain GIF on Instagram — see
 [Receiving Messages](webhooks.md#media-messages).
 
 ### Response time
