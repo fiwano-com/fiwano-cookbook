@@ -36,15 +36,15 @@ For self-hosted Docker: build this package into a custom n8n image — see the [
 
 | Resource | Operations |
 |---|---|
-| Message | Send Text, Send Template (WhatsApp), Send Media (image/audio/video/document), Send Interactive (buttons, cards, quick replies, list) |
+| Message | Send Text, Send Template (WhatsApp), Send Media (image/audio/video/document/sticker), Send Interactive (buttons, cards, quick replies, list) |
 | Media | Download (fetch a received media file; expires 60 min after the webhook) |
 | Channel | Get Many, Get, Generate OAuth URL, Exchange OAuth Code, Update (webhook settings, echo status tracking, and subscription binding), Deactivate |
-| Subscription | Get Many (subscriptions, the channel assigned to each slot, and free slots per channel type and tier) |
+| Subscription | Get Many (subscriptions, the channel assigned to each slot, and free slots per channel type and tier; **Filters → Status** returns only active, expired or canceled subscriptions) |
 | Contact | Get Profile (Instagram & Facebook — returns name/username and profile picture; Instagram also follower count) |
 | Template | Get Many, Get, Create, Update, Delete (WhatsApp only) |
 | Redirect URI | Get Many, Add, Delete |
 
-**Deactivate is a soft delete.** It stops a channel sending and receiving but keeps its ID, history and its subscription slot, so the same Meta account can be reconnected later. To free the slot for a different channel, deactivate it and then send an empty **Subscription ID** in **Update** — see [subscription slots](channels.md#subscription-slots).
+**Deactivate is a soft delete.** It stops a channel sending and receiving but keeps its ID, history and its subscription slot, so the same Meta account can be reconnected later. To free the slot for a different channel, deactivate it and then turn on **Release Subscription Slot** in **Update** (an empty **Subscription ID** is ignored) — see [subscription slots](channels.md#subscription-slots).
 
 ### Trigger node — events
 
