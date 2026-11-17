@@ -114,6 +114,17 @@ In each subscription, `assigned_channels` shows which channel is assigned to the
 subscription for each type; `null` means no channel is assigned there. The reverse
 mapping is on the channel itself: `subscription.id` in `GET /api/v1/channels`.
 
+By default the list includes expired and canceled subscriptions. To get only
+some statuses, pass `status` (repeat it to combine):
+
+```bash
+curl -H "X-API-Key: $FIWANO_API_KEY" \
+  "https://fiwano.com/api/v1/subscriptions?status=active"
+```
+
+The filter narrows `subscriptions` and `total` only; `active_total` and
+`available_slots` always describe the whole account.
+
 To move a channel to a different subscription, or to release a slot so another
 channel of the same type can take it, use `subscription_id` in
 `PATCH /api/v1/channels/{channel_id}` — see

@@ -25,6 +25,11 @@ paths:
         user.
 
 
+        By default every subscription is returned, including expired and canceled
+
+        ones. Pass `status=active` to get only the ones that can carry channels.
+
+
         Use this endpoint before starting a channel setup flow to check whether a
 
         new WhatsApp, Instagram, or Facebook channel can be connected right now.
@@ -35,6 +40,30 @@ paths:
 
         inactive channel that still has an operable reserved slot.'
       operationId: list_subscriptions_api_v1_subscriptions_get
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              enum:
+              - active
+              - expired
+              - canceled
+              type: string
+          - type: 'null'
+          description: Return only subscriptions with this status. Repeat to combine
+            (`?status=active&status=expired`). Omit to return all. `active_total`
+            and `available_slots` always cover the whole account.
+          title: Status
+        description: Return only subscriptions with this status. Repeat to combine
+          (`?status=active&status=expired`). Omit to return all. `active_total` and
+          `available_slots` always cover the whole account.
       responses:
         '200':
           description: Successful Response
@@ -42,9 +71,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionsResponse'
-      security:
-      - ApiKeyAuth: []
-      - BearerAuth: []
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/channels:
     get:
       tags:
@@ -2122,11 +2154,13 @@ components:
         total:
           type: integer
           title: Total
-          description: Total number of subscriptions returned.
+          description: Number of subscriptions returned (after the `status` filter,
+            if given).
         active_total:
           type: integer
           title: Active Total
-          description: Number of currently active subscriptions.
+          description: Number of currently active subscriptions on the account. Not
+            affected by the `status` filter.
         available_slots:
           additionalProperties:
             $ref: '#/components/schemas/AvailableSlotsByTier'

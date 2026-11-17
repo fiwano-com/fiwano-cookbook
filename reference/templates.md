@@ -31,6 +31,8 @@ through these endpoints — full request/response schemas are in the
 | Update components | `PUT /api/v1/channels/{id}/templates/{template_id}` |
 | Delete | `DELETE /api/v1/channels/{id}/templates/{template_id}` |
 
+<a id="creating"></a>
+
 ### Creating a template
 
 A template is a `name` + `category` (`MARKETING`, `UTILITY`, or `AUTHENTICATION`)
@@ -62,6 +64,9 @@ curl -X POST https://fiwano.com/api/v1/channels/a1b2c3d4e5f67890/templates \
 - **Deleting an approved template** locks its **name for 30 days** — you can't
   recreate a template with the same name until then (Meta restriction).
 - **Creating** is capped at ~100 templates per WABA per hour.
+- **A `name` + `language` pair is unique** on a WhatsApp account. Creating it
+  again returns `409` with `detail.code: "template_already_exists"` — the
+  first template stands; use it, pick another name, or add another language.
 
 <a id="sending"></a>
 

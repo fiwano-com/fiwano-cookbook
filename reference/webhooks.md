@@ -616,9 +616,9 @@ If your webhook URL returns a non-2xx status or is unreachable, the system retri
 - **Email warning** sent after the 3rd failed attempt (retries still in progress)
 - **Email alert** sent when all retries are exhausted (permanent failure)
 - Payloads are stored encrypted only while a delivery is being retried, and deleted once it succeeds or expires
-- In the portal, the channel's **Delivery problems** page (Webhooks tab) lists the last 7 days of deliveries that are retrying, failed, or recovered after 3+ attempts, with your endpoint's error (payloads are never shown)
+- In the portal, the channel's **Delivery problems** page (Webhooks tab) lists the last 7 days of deliveries that are retrying, failed, or recovered after 3+ attempts — what went wrong, what to do, and your endpoint's own answer (payloads are never shown)
 
-**Important:** Your endpoint **must respond with HTTP 2xx within 5 seconds**. Non-2xx responses or timeouts trigger the retries above.
+**Important:** Your endpoint **must respond with HTTP 2xx within 5 seconds**. Non-2xx responses or timeouts trigger the retries above. Redirects are not followed: a `3xx` answer counts as a failure, so set the final URL (for example `https://`, not `http://`).
 
 **Respond first, then process.** Do slow work, such as generating an AI reply, after you return 2xx (on serverless platforms, with the platform's background-task mechanism). A slow response is retried and delivers the same event again — deduplicate `message.received` on `message_id`.
 

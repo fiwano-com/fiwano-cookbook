@@ -30,6 +30,7 @@ may want to handle in code carry a structured `detail` with a stable `code`, a
 | `invalid_interactive_request` | `400` | `send-interactive` asked for something the channel does not have; `reason` names the rule (`quick_replies_unsupported`, `list_unsupported`, `text_with_cards_unsupported`, `text_required`, `whatsapp_button_mix`, `card_buttons_mismatch`, `text_too_long`) and `hint` the fix — see [Interactive messages](sending-messages.md#interactive-messages) |
 | `invalid_media_request` | `400` | A sticker uses the wrong field for the channel; `reason` is `media_url_required` (WhatsApp), `sticker_id_required` (Messenger) or `sticker_unsupported` (Instagram) |
 | `no_free_slot` | `409` | Every subscription slot for this channel type is taken; `occupied_by` lists the channels holding them |
+| `template_already_exists` | `409` | The WhatsApp account already has a template with this `name` and `language`; both are included — see [Creating a template](templates.md#creating) |
 
 | Status | Meaning | What to do |
 |---|---|---|
@@ -38,7 +39,7 @@ may want to handle in code carry a structured `detail` with a stable `code`, a
 | `402` | No active subscription, or the feature needs Pro (media, templates) and the channel is on Starter | See [Subscriptions & Billing](subscriptions.md) |
 | `403` | The account is inactive, or the OAuth code belongs to another account | Contact support if the account should be active |
 | `404` | Not found, or it belongs to another account | Check the ID |
-| `409` | No free subscription slot (`no_free_slot`) | Reconnect a channel, release a slot or add a subscription — see [subscription slots](channels.md#subscription-slots) |
+| `409` | No free subscription slot (`no_free_slot`), or the template already exists (`template_already_exists`) | Read `detail.code`: reconnect a channel, release a slot or add a subscription — see [subscription slots](channels.md#subscription-slots); or use the existing template. Do not retry |
 | `410` | Inbound media has expired | Download within 60 minutes — see [Downloading inbound media](webhooks.md#downloading-inbound-media) |
 | `422` | A field is missing, has the wrong type or breaks a constraint | Read the field list in `detail` |
 | `429` | Rate limit — per channel on sends, per API key on everything else | Retry after `Retry-After` — see [rate limits](capabilities.md#rate-limits) |
@@ -74,6 +75,7 @@ code in `error_code`.
 | `368` | The account is temporarily blocked for policy violations | no | Resolve it in Meta Business Manager |
 | `551` | Messenger/Instagram: this person is not receiving your messages — they blocked the Page, closed the chat, restricted business messages, or never messaged the Page | no | Nothing to fix on your side; do not resend automatically |
 | `803` | The recipient does not exist or is unavailable | no | Check the recipient ID |
+| `131000` | WhatsApp: an internal error at Meta (*Something went wrong*) | **yes** | Nothing; if the send still ends `failed`, send it again |
 | `131008`, `131009` | A required parameter is missing, or a value is not valid for this channel | no | Fix the request |
 | `131026` | WhatsApp: undeliverable — the number is not on WhatsApp, or the recipient has not accepted WhatsApp's terms or uses an old app version | no | Check the number; do not resend automatically |
 | `131042` | A payment problem on the WhatsApp Business account in Meta — no payment method, a credit line over its limit, the account suspended. This is Meta's billing, not your Fiwano subscription | **yes** | Fix billing for the WhatsApp Business account — see [Meta's help article](https://www.facebook.com/business/help/2225184664363779) |
