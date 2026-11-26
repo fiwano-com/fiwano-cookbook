@@ -30,16 +30,18 @@ may want to handle in code carry a structured `detail` with a stable `code`, a
 | `invalid_interactive_request` | `400` | `send-interactive` asked for something the channel does not have; `reason` names the rule (`quick_replies_unsupported`, `list_unsupported`, `text_with_cards_unsupported`, `text_required`, `whatsapp_button_mix`, `card_buttons_mismatch`, `text_too_long`) and `hint` the fix — see [Interactive messages](sending-messages.md#interactive-messages) |
 | `invalid_media_request` | `400` | A sticker uses the wrong field for the channel; `reason` is `media_url_required` (WhatsApp), `sticker_id_required` (Messenger) or `sticker_unsupported` (Instagram) |
 | `no_free_slot` | `409` | Every subscription slot for this channel type is taken; `occupied_by` lists the channels holding them |
+| `insufficient_credits` | `402` | A prepaid subscription would take the channel, but its credits do not cover it today — see [Prepaid subscriptions](subscriptions.md#prepaid-subscriptions) |
+| `channel_limit_reached` | `409` | The prepaid subscription's limit for this channel type is reached |
 | `template_already_exists` | `409` | The WhatsApp account already has a template with this `name` and `language`; both are included — see [Creating a template](templates.md#creating) |
 
 | Status | Meaning | What to do |
 |---|---|---|
 | `400` | The request cannot be carried out as sent — for example the channel is inactive or must be reconnected | Read `detail`; fix the request or [reconnect the channel](channels.md#reconnecting-an-inactive-channel) |
 | `401` | API key missing, malformed or revoked | Send a valid key — see [Authentication](https://fiwano.com/documentation#authentication) |
-| `402` | No active subscription, or the feature needs Pro (media, templates) and the channel is on Starter | See [Subscriptions & Billing](subscriptions.md) |
+| `402` | No active subscription, the feature needs Pro (media, templates) and the channel is on Starter, or the credits of a prepaid subscription do not cover the channel being connected or moved to it (`insufficient_credits`) | See [Subscriptions & Billing](subscriptions.md) |
 | `403` | The account is inactive, or the OAuth code belongs to another account | Contact support if the account should be active |
 | `404` | Not found, or it belongs to another account | Check the ID |
-| `409` | No free subscription slot (`no_free_slot`), or the template already exists (`template_already_exists`) | Read `detail.code`: reconnect a channel, release a slot or add a subscription — see [subscription slots](channels.md#subscription-slots); or use the existing template. Do not retry |
+| `409` | No free subscription slot (`no_free_slot`), the prepaid limit for the channel type is reached (`channel_limit_reached`), or the template already exists (`template_already_exists`) | Read `detail.code`: reconnect a channel, release a slot or add a subscription — see [subscription slots](channels.md#subscription-slots); ask support to raise a prepaid limit; or use the existing template. Do not retry |
 | `410` | Inbound media has expired | Download within 60 minutes — see [Downloading inbound media](webhooks.md#downloading-inbound-media) |
 | `422` | A field is missing, has the wrong type or breaks a constraint | Read the field list in `detail` |
 | `429` | Rate limit — per channel on sends, per API key on everything else | Retry after `Retry-After` — see [rate limits](capabilities.md#rate-limits) |

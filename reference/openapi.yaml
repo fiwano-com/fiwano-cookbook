@@ -34,7 +34,13 @@ paths:
 
         new WhatsApp, Instagram, or Facebook channel can be connected right now.
 
-        A positive `available_slots.<type>.total` means a new channel can be added.
+        A positive `available_slots.<type>.total` means a new channel can be added:
+
+        free slots of regular subscriptions plus, for a prepaid subscription
+
+        (`source: "prepaid"`), the channels its credits cover today within its limit
+
+        for the type.
 
         POST /api/v1/channels/setup-url also permits reconnecting an existing
 
@@ -55,6 +61,7 @@ paths:
               - active
               - expired
               - canceled
+              - frozen
               type: string
           - type: 'null'
           description: Return only subscriptions with this status. Repeat to combine
@@ -285,13 +292,21 @@ paths:
         identity is preferred when both new and inactive assets are available.
 
 
-        Refused with 402 when the account has no active subscription, and with 409
+        Refused with 402 when the account has no active subscription; with 402
 
-        (`detail.code` = `no_free_slot`, `detail.occupied_by` = channel ids) when
+        `detail.code` = `insufficient_credits` when a prepaid subscription could take
 
-        every subscription slot of this type is already taken and none of the
+        the channel but its credits do not cover it today; with 409
 
-        occupying channels can be reconnected through this flow.'
+        `detail.code` = `channel_limit_reached` when the prepaid limit for the type
+        is
+
+        used up; and with 409 (`detail.code` = `no_free_slot`, `detail.occupied_by`
+        =
+
+        channel ids) when every subscription slot of this type is already taken and
+
+        none of the occupying channels can be reconnected through this flow.'
       operationId: create_setup_url_api_v1_channels_setup_url_post
       requestBody:
         content:
@@ -977,22 +992,32 @@ components:
         total:
           type: integer
           title: Total
-          description: Total free active slots for this channel type.
+          description: How many more channels of this type can be connected right
+            now.
         starter:
           type: integer
           title: Starter
-          description: Free Starter subscription slots for this channel type.
+          description: The part of `total` on Starter subscriptions.
         pro:
           type: integer
           title: Pro
-          description: Free Pro subscription slots for this channel type.
+          description: The part of `total` on Pro subscriptions.
       type: object
       required:
       - total
       - starter
       - pro
       title: AvailableSlotsByTier
-      description: Free active subscription slots for one channel type.
+      description: 'How many more channels of one type can be connected right now.
+        Each regular
+
+        subscription adds its free slot of the type; a prepaid subscription adds the
+
+        channels its credits cover today, within its limit for the type if one is
+
+        set. Prepaid credits are shared by all types, so the numbers of different
+
+        types do not add up.'
     ChannelHealth:
       properties:
         status:
@@ -1566,6 +1591,30 @@ components:
       - title
       title: InteractiveQuickReply
       description: One quick reply chip (Instagram / Messenger).
+    PrepaidOut:
+      properties:
+        balance_credits:
+          type: integer
+          title: Balance Credits
+          description: Current credit balance.
+        daily_cost_credits:
+          type: integer
+          title: Daily Cost Credits
+          description: Credits one day costs with the channels connected now.
+      type: object
+      required:
+      - balance_credits
+      - daily_cost_credits
+      title: PrepaidOut
+      description: 'Credit balance of a prepaid subscription (`source: "prepaid"`).
+
+
+        A prepaid subscription has no slots: it holds any number of channels and is
+
+        charged in credits per connected channel per UTC day. Its `expires_at` is
+        a
+
+        forecast of how long the balance lasts. Amounts are integer credits.'
     RedirectCreateRequest:
       properties:
         uri_pattern:
@@ -2024,15 +2073,18 @@ components:
           type: string
           title: Status
           description: 'Subscription status: ''active'', ''expired'', ''canceled'',
-            or ''none'' (no license bound — channel cannot send/receive messages).'
+            ''frozen'' (a prepaid subscription paused by Fiwano), or ''none'' (no
+            license bound — channel cannot send/receive messages).'
         source:
           anyOf:
           - type: string
           - type: 'null'
           title: Source
           description: 'Origin of the license: ''trial'' (auto-created on signup),
-            ''paddle'' (paid subscription), or ''enterprise'' (admin-granted custom
-            subscription). Null when status=''none''.'
+            ''paddle'' (paid subscription), ''enterprise'' (admin-granted custom subscription),
+            or ''prepaid'' (prepaid subscription charged in credits per channel per
+            day; its expires_at is a forecast of how long the balance lasts). Null
+            when status=''none''.'
         tier:
           anyOf:
           - type: string
@@ -2092,11 +2144,12 @@ components:
         status:
           type: string
           title: Status
-          description: 'Subscription status: active, expired, or canceled.'
+          description: 'Subscription status: active, expired, canceled, or frozen
+            (a prepaid subscription paused by Fiwano).'
         source:
           type: string
           title: Source
-          description: 'Origin: trial, paddle, or enterprise.'
+          description: 'Origin: trial, paddle, enterprise, or prepaid.'
         tier:
           type: string
           title: Tier
@@ -2120,22 +2173,41 @@ components:
           title: Auto Renew
           description: True only for an active Paddle subscription set to renew automatically.
           default: false
+        channels:
+          items:
+            $ref: '#/components/schemas/SubscriptionAssignedChannel'
+          type: array
+          title: Channels
+          description: 'Every channel bound to this subscription, connected or not:
+            at most one per channel type for a regular subscription, any number for
+            a prepaid subscription.'
         assigned_channels:
-          additionalProperties:
-            anyOf:
-            - $ref: '#/components/schemas/SubscriptionAssignedChannel'
-            - type: 'null'
-          type: object
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - $ref: '#/components/schemas/SubscriptionAssignedChannel'
+              - type: 'null'
+            type: object
+          - type: 'null'
           title: Assigned Channels
-          description: Channels assigned to this subscription by channel type. Values
-            are null when no channel is assigned for that type. Use top-level available_slots
-            for current connection availability.
+          description: 'Deprecated — read `channels`; kept for compatibility for the
+            lifetime of API v1. The slot view of a regular subscription: the channel
+            in each type''s slot, or null. `null` for a prepaid subscription, which
+            has no slots.'
+          deprecated: true
+        prepaid:
+          anyOf:
+          - $ref: '#/components/schemas/PrepaidOut'
+          - type: 'null'
+          description: Credit balance and charging state; present only when `source`
+            is `prepaid`.
       type: object
       required:
       - id
       - status
       - source
       - tier
+      - channels
       - assigned_channels
       title: SubscriptionOut
       description: 'A Fiwano subscription/license and its channel-slot availability.
@@ -2143,7 +2215,12 @@ components:
 
         Public API uses the product term "subscription"; internally this maps to a
 
-        License row. One subscription grants one slot for each channel type.'
+        License row. One subscription grants one slot for each channel type — except
+
+        a prepaid subscription (`source: "prepaid"`), which has no slots and reports
+        its
+
+        channels and credit balance in `prepaid`.'
     SubscriptionsResponse:
       properties:
         subscriptions:
@@ -2166,8 +2243,9 @@ components:
             $ref: '#/components/schemas/AvailableSlotsByTier'
           type: object
           title: Available Slots
-          description: Free active subscription slots by channel type, split by tier.
-            `total` is the sum of Starter and Pro free slots.
+          description: How many more channels of each type can be connected right
+            now, split by tier. The numbers of different types do not add up when
+            a prepaid subscription is counted.
       type: object
       required:
       - subscriptions

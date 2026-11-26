@@ -39,7 +39,7 @@ For self-hosted Docker: build this package into a custom n8n image — see the [
 | Message | Send Text, Send Template (WhatsApp), Send Media (image/audio/video/document/sticker), Send Interactive (buttons, cards, quick replies, list) |
 | Media | Download (fetch a received media file; expires 60 min after the webhook) |
 | Channel | Get Many, Get, Generate OAuth URL, Exchange OAuth Code, Update (webhook settings, echo status tracking, and subscription binding), Deactivate |
-| Subscription | Get Many (subscriptions, the channel assigned to each slot, and free slots per channel type and tier; **Filters → Status** returns only active, expired or canceled subscriptions) |
+| Subscription | Get Many (subscriptions, the channels on each, how many more channels of each type can be connected, and the credit balance of a [prepaid subscription](subscriptions.md#prepaid-subscriptions); **Filters → Status** returns only active, expired, canceled or frozen subscriptions) |
 | Contact | Get Profile (Instagram & Facebook — returns name/username and profile picture; Instagram also follower count) |
 | Template | Get Many, Get, Create, Update, Delete (WhatsApp only) |
 | Redirect URI | Get Many, Add, Delete |

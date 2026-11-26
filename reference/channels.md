@@ -103,7 +103,10 @@ and with `409` when every subscription slot for that channel type is already
 taken and none of the occupying channels can be reconnected through this flow.
 The `409` body is structured: `detail.code` is `no_free_slot` and
 `detail.occupied_by` lists the channels holding the slots — see
-[subscription slots](#subscription-slots) for how to free one.
+[subscription slots](#subscription-slots) for how to free one. When a
+[prepaid subscription](subscriptions.md#prepaid-subscriptions) would
+take the channel, the refusal is `402` `insufficient_credits` or `409`
+`channel_limit_reached` instead.
 
 **Step 3 — User completes Meta OAuth.** After approval, the user is redirected to
 your `redirect_uri` with a one-time `code` parameter:
@@ -247,6 +250,9 @@ channel later without buying another subscription.
 
 `GET /api/v1/subscriptions` shows which channel sits in each slot and how many
 slots are free; each channel reports its own `subscription.id` in return.
+
+A [prepaid subscription](subscriptions.md#prepaid-subscriptions) is the
+exception: it has no slots and holds any number of channels of each type.
 
 Send `subscription_id` to `PATCH /api/v1/channels/{channel_id}` to change that. A
 subscription ID moves the channel there — no downtime, and it does not have to be
