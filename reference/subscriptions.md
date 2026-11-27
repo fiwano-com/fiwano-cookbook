@@ -235,7 +235,8 @@ portal (Billing).
 
 **When the credits run out.** If the balance does not cover the next day, that
 day is not charged and the subscription becomes `expired`; the remaining credits
-stay. Its channels stop sending and receiving. Channels move to a regular
+stay. Its channels stop sending and receiving: a send answers `402`
+`insufficient_credits`. Channels move to a regular
 subscription with a free slot when you have one; the rest stay connected for 3
 days and are then deactivated — unless a subscription with room appears in the
 meantime: they move to it automatically. We email you a week, 3 days and 24 hours
@@ -258,8 +259,8 @@ When a prepaid subscription cannot take a channel — on `PATCH` or on
 `POST /api/v1/channels/setup-url` — the error `detail` is an object with
 `code`, `message` and `hint`:
 
-- `402` `insufficient_credits` — the credits do not cover the channel today. Buy
-  credits in the portal, then retry.
+- `402` `insufficient_credits` — the credits do not cover the channel today, or
+  the subscription is stopped. Buy credits in the portal, then retry.
 - `409` `channel_limit_reached` — the limit for that channel type is reached.
   Contact support to change it.
 
